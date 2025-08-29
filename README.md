@@ -1,19 +1,26 @@
 # LeiaAnapaula.github.io
 
-# Project Portfolio
+## Project Portfolio
 
-This repository contains my portfolio for CS180, my computer vision class at UC Berkeley, showcasing various projects and assignments. 
-Senior year just started!
+This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley, showcasing my projects and assignments.  
+✨ Senior year just started!
 
 ## Project Structure
 
-- **index.html**: The main page of the portfolio, featuring a welcome message and links to projects.
-- **1/index.html**: A subpage dedicated to Project 0, containing detailed information about the project.
+- **index.html** — Main portfolio page with a welcome message and links to projects.  
+  <ul>
+    <li><a href="/index.html">Main Portfolio</a></li>
+  </ul>
+
+- **Proj0/index.html** — Subpage for Project 0 with detailed write-up and images.  
+  <ul>
+    <li><a href="Proj0/index.html">Project 0</a></li>
+  </ul>
 
 ## How to Navigate
 
-- Open `index.html` in your browser to view the main portfolio page.
-- Click on the link to Project 0 to access the details of that project. 
+- Open [index.html](https://LeiaAnapaula.github.io) in your browser to view the main portfolio page.  
+- Use the links on that page to explore individual projects like Project 0.  
 
 ## License
 

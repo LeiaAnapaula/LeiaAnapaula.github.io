@@ -25,23 +25,29 @@
                     I love flow state, dancing, experimenting with food, and building with inspiring people.</p>
                 <h2>Part 1: Align Function</h2>
                     <h3>Monastery PNG</h3>
-                    <img src="180-images/selfie-zoom.png" width="300" alt="Zoom selfie of Leia">
+                    <img src="aligned/monastery_aligned.png" width="300" alt="Full colored picture of the Monastery">
 
                     <h4>Reflection</h4>
-                    <p>For the close-up selfie, I held the camera very close to my face, which resulted in a more intimate and detailed image. 
-                        This selfie has perspective distortion because my features closer to the lens like my forehead and nose appear larger.
-                        While the background spreads out.</p>
+                    <p>
+                    I first crop ~10% off all sides before scoring to suppress plate borders/labels that would
+                    bias NCC. I search a local window (±15 px) and pick the displacement with the highest NCC.
+                    Using <code>R</code> as the reference yields sharper edges and fewer color fringes than using <code>B</code>.
+                    </p>
+                  <p class="muted">Method: single-scale NCC; border crop = 10%.</p>
             </section>
 
             <section>
                 <h2>Pyramid Function</h2>
                     <h3> Self-portrait TIF</h3>
-                    <img src="180-images/Campanile-Zoom.png" height=auto width="300" alt="Zoomed in Campanile">
+                    <img src="aligned/self_portrait.png" height=auto width="300" alt="Zoomed in Campanile">
                    
-                    <h4>Reflection</h4>
-                    <p>In the zoomed-in photo of the Campanile, I used the iPhone portrait mode to capture the structure from a distance. 
-                    I believe the zoomed-in photo looks flatter because of a longer focal length that caused the perspective compression 
-                    smoothed out the subject details, and the background is blurred, which reduces the sense of depth.</p>
+                   <p>
+                    A naive pyramid with <code>np.resize</code> produced tiled artifacts. I switched to true resampling
+                    (<code>skimage.transform.rescale</code> with anti-aliasing) and aligned on either raw intensities or
+                    Sobel edges. Edge-based NCC is more stable under exposure differences. After applying the coarse displacement,
+                    a small (±3–4 px) local search refines the result. A final 10–14% crop removes residual color borders.
+                   </p>
+                  <p class="muted">Method: pyramid NCC (~6–7 levels), anti-aliased resampling; optional Sobel-NCC; border crop = 10–14%.</p>
             </section>
 
            

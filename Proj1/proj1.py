@@ -6,6 +6,8 @@
 import numpy as np
 import skimage as sk
 import skimage.io as skio # make a python environment with scikit-image installed
+from skimage.transform import rescale
+
 
 # name of the input file
 imname = 'images/monastery.jpg'
@@ -106,34 +108,35 @@ skio.show()
 
 # use the pyramid function
 
-def pyramid(im1, im2, levels):
-    # work with recursive functions
-
-    # resize the image
+def align_pyramid(im1, im2, levels=3):
     if levels == 0:
-        aligned = align(im1, im2)
-        aligned_x = aligned[0] # displacement is already correct
-        aligned_y = aligned[1] 
-
-        return (aligned_x, aligned_y)
+        return align(im1, im2)
     
-    else:
-        # make smaller versions
-        im1_small = np.resize(im1, (im1.shape[0]//2, im1.shape[1]//2))
-        im2_small = np.resize(im2, (im2.shape[0]//2, im2.shape[1]//2))
-
-        # rough displacement from smaller images
-        rough_displacement = pyramid(im1_small, im2_small, levels - 1) # call itself again
-
-        # scale it up for current scale
-        scaled_displacement = (rough_displacement[0] * 2, rough_displacement[1] * 2)
-
-        # do a small refinement search around the scaled displacement
-        aligned = align(im1, np.roll(im2, (scaled_displacement[0], scaled_displacement[1]), axis = (0, 1)))
-        scale1_x = aligned[0] + scaled_displacement[0]
-        scale1_y = aligned[1] + scaled_displacement[1]
-
-        return (scale1_x, scale1_y) # call itself again
+    # Downsample properly
+    im1_small = rescale(im1, 0.5, anti_aliasing=True, preserve_range=True)
+    im2_small = rescale(im2, 0.5, anti_aliasing=True, preserve_range=True)
+    
+    # Get coarse displacement
+    coarse_disp = align_pyramid(im1_small, im2_small, levels-1)
+    
+    # Scale up and refine with small search
+    scaled_disp = (coarse_disp[0]*2, coarse_disp[1]*2)
+    
+    # Small refinement search around scaled displacement
+    best_disp = scaled_disp
+    best_ncc = -np.inf
+    im1_crop = crop_inner(im1)
+    
+    for dy in range(-2, 3):  # Small search window
+        for dx in range(-2, 3):
+            test_disp = (scaled_disp[0] + dy, scaled_disp[1] + dx)
+            im2_shift = np.roll(crop_inner(im2), test_disp, axis=(0,1))
+            current_ncc = ncc(im1_crop, im2_shift)
+            if current_ncc > best_ncc:
+                best_ncc = current_ncc
+                best_disp = test_disp
+                
+    return best_disp
     
 # use the align function i alr created
 
@@ -162,8 +165,10 @@ r2 = im2[2*height2: 3*height2]
 
 
 # align green and red channels to blue
-ag2_displacement = pyramid(r2, g2, 10) # return g shifted to match b
-ab2_displacement = pyramid(r2, b2, 10) # return r shifted to match b
+# Replace pyramid calls with simple align calls temporarily
+ag2_displacement = align_pyramid(r2, g2, 3)
+ab2_displacement = align_pyramid(r2, b2, 3)
+print(f"Simple align - Green: {ag2_displacement}, Blue: {ab2_displacement}")
 
 ag2 = np.roll(g2, (ag2_displacement[0], ag2_displacement[1]), axis = (0, 1))
 ab2 = np.roll(b2, (ab2_displacement[0], ab2_displacement[1]), axis = (0, 1))

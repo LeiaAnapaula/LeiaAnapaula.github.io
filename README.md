@@ -17,6 +17,11 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
     <li><a href="Proj0/index.html">Project 0</a></li>
   </ul>
 
+- **Proj1/index.html** — Subpage for Project 1 with aligned & pyramid images.  
+  <ul>
+    <li><a href="Proj1/index.html">Project 1</a></li>
+  </ul>
+
 ## How to Navigate
 
 - Open [index.html](https://LeiaAnapaula.github.io) in your browser to view the main portfolio page.  

@@ -1,94 +1,184 @@
-# include code snippets from 1.1
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Project 2 by Leia</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>CS180 – Project 2 (Leia)</title>
   <style>
-    /* you can move this into styles.css */
-    img { max-width: 100%; height: auto; display: block; margin: 0.5rem 0; }
-    .w300 { width: 300px; }
-    main { max-width: 900px; margin: 0 auto; padding: 1rem; }
-    .muted { color: #666; font-size: 0.95em; }
+    :root { --w: 320px; --gap: 18px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.45; margin: 0; color: #222; }
+    header { padding: 28px 16px; border-bottom: 1px solid #eee; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1, h2, h3 { margin: 0.4em 0 0.35em; }
+    section { margin: 36px 0 44px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w), 1fr)); gap: var(--gap); align-items: start; }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; display: block; border-radius: 8px; }
+    figure figcaption { font-size: 0.95rem; color: #555; margin-top: 6px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .pill { display: inline-block; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; margin-left: 6px; }
+    .hr { height: 1px; background: #eee; margin: 28px 0; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Project 2 by Leia</h1>
+    <h1>Project 2 – Fun with Filters <span class="pill">Leia</span></h1>
+    <p class="muted">CS180/280A • Fall 2025</p>
   </header>
 
   <main>
-    <section>
-  <h2>Part 1: Fun with Filters</h2>
+    <!-- ===================== Part 1.1 ===================== -->
+    <section id="part11">
+      <h2>Part 1.1 — Convolutions from Scratch</h2>
+      <p>
+        I implemented 2D convolution two ways: a <em>4-loop</em> version (over <code>H, W, kh, kw</code>) and a
+        faster <em>2-loop</em> version (loop over pixels and take an elementwise dot with the local patch).
+        As a sanity check, I compared to <code>scipy.signal.convolve2d</code> (MAE ≈ 1e-7).
+      </p>
 
-  <h3>1.1 Convolutions from Scratch</h3>
-  <p>
-    I implemented 2D convolution twice: a 4-loop “from first principles” version and a 2-loop
-    version that vectorizes the inner dot-product. I then verified my result against
-    <code>scipy.signal.convolve2d</code> (same padding/size).
-  </p>
+      <div class="grid">
+        <figure>
+          <img src="figs/blur9_selfie.png" alt="Selfie blurred with a 9x9 box filter">
+          <figcaption>Selfie with 9×9 box filter (averaging). Smooths fine detail by design.</figcaption>
+        </figure>
+      </div>
 
-  <h4>Result: 9×9 Box Filter</h4>
-  <figure>
-    <img src="Proj2/figs/blur9.png" alt="Selfie with 9×9 Box Filter" class="w300">
-    <figcaption>Selfie convolved with a 9×9 box filter (box blur).</figcaption>
-  </figure>
-
-  <h4>Result: Finite Differences</h4>
-  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items:start;">
-    <figure>
-      <img src="Proj2/figs/Gx.png" alt="Horizontal edges (Gx)">
-      <figcaption>Horizontal edges (Gx)</figcaption>
-    </figure>
-    <figure>
-      <img src="Proj2/figs/Gy.png" alt="Vertical edges (Gy)">
-      <figcaption>Vertical edges (Gy)</figcaption>
-    </figure>
-    <figure>
-      <img src="Proj2/figs/grad_mag.png" alt="Gradient magnitude">
-      <figcaption>Gradient magnitude</figcaption>
-    </figure>
-  </div>
-
-  <h4>Key Snippets (numpy-only)</h4>
-  <pre><code># 2-loop convolution (kernel is flipped inside)
-def conv2d_naive_2loops(img, kernel):
+      <h3>Key snippets</h3>
+      <p class="muted">4-loop convolution (kernel is flipped internally for true convolution):</p>
+      <pre><code># 4-loop conv (numpy only)
+def conv2d_naive_4loops(img, kernel):
     img = img.astype(np.float32)
-    k = np.array(kernel, dtype=np.float32)[::-1, ::-1]
+    k = np.array(kernel, np.float32)[::-1, ::-1]          # flip
     H, W = img.shape; kh, kw = k.shape
     ph, pw = kh//2, kw//2
     p = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
-    out = np.zeros((H, W), dtype=np.float32)
+    out = np.zeros((H, W), np.float32)
+    for i in range(H):
+        for j in range(W):
+            acc = 0.0
+            for u in range(kh):
+                for v in range(kw):
+                    acc += p[i+u, j+v] * k[u, v]
+            out[i, j] = acc
+    return out</code></pre>
+
+      <p class="muted">2-loop version (vectorized inner patch):</p>
+      <pre><code>def conv2d_naive_2loops(img, kernel):
+    img = img.astype(np.float32)
+    k = np.array(kernel, np.float32)[::-1, ::-1]
+    H, W = img.shape; kh, kw = k.shape
+    ph, pw = kh//2, kw//2
+    p = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
+    out = np.zeros((H, W), np.float32)
     for i in range(H):
         for j in range(W):
             region = p[i:i+kh, j:j+kw]
             out[i, j] = np.sum(region * k)
-    return out
+    return out</code></pre>
 
-# 9×9 box filter
-box9 = np.ones((9,9), np.float32) / 81.0
-blur9 = conv2d_naive_2loops(img, box9)
+      <div class="hr"></div>
+    </section>
 
-# finite differences
+    <!-- ===================== Part 1.2 ===================== -->
+    <section id="part12">
+      <h2>Part 1.2 — Finite Difference Operator</h2>
+      <p>
+        I convolved <em>cameraman</em> with finite-difference filters
+        \(D_x=[1,-1]\) and \(D_y=\begin{bmatrix}1\\-1\end{bmatrix}\) using <code>scipy.signal.convolve2d</code>,
+        then formed the gradient magnitude \( \sqrt{G_x^2 + G_y^2} \) and thresholded it to make a binary edge map.
+      </p>
+
+      <div class="grid">
+        <figure>
+          <img src="figs/Gx_cameraman.png" alt="Gx">
+          <figcaption>Horizontal derivative \(G_x\) (sensitive to vertical edges).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/Gy_cameraman.png" alt="Gy">
+          <figcaption>Vertical derivative \(G_y\) (sensitive to horizontal edges).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/grad_mag_cameraman.png" alt="Gradient magnitude">
+          <figcaption>Gradient magnitude \(|\nabla f|\).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/edges_cameraman.png" alt="Binarized edges">
+          <figcaption>Edges after thresholding (picked qualitatively to keep real edges, suppress noise).</figcaption>
+        </figure>
+      </div>
+
+      <h3>Snippet</h3>
+      <pre><code>from scipy.signal import convolve2d
+
 Dx = np.array([[1, -1]], np.float32)
 Dy = np.array([[1], [-1]], np.float32)
-Gx = conv2d_naive_2loops(img, Dx)
-Gy = conv2d_naive_2loops(img, Dy)
+
+Gx = convolve2d(img, Dx, mode='same', boundary='symm')
+Gy = convolve2d(img, Dy, mode='same', boundary='symm')
 mag = np.hypot(Gx, Gy)
-</code></pre>
+t = 0.2 * float(mag.max())
+edges = (mag &gt; t).astype(np.float32)</code></pre>
 
-  <h4>Sanity Check vs SciPy</h4>
-  <pre><code>from scipy.signal import convolve2d
-scipy_blur = convolve2d(img, box9, mode='same', boundary='fill', fillvalue=0)
-print("MAE vs scipy:", np.abs(blur9 - scipy_blur).mean())</code></pre>
+      <div class="hr"></div>
+    </section>
 
-  <h4>Reflection</h4>
-  <ul class="muted">
-    <li>Padding set to zero so my output size matches the input (mode='same').</li>
-    <li>Flipping the kernel distinguishes convolution from correlation.</li>
-    <li>2-loop version equals 4-loop but is much faster; both match SciPy up to fp error.</li>
-  </ul>
-</section>
+    <!-- ===================== Part 1.3 ===================== -->
+    <section id="part13">
+      <h2>Part 1.3 — Gaussian &amp; Derivative of Gaussian (DoG)</h2>
+      <p>
+        To reduce noise, I first smooth with a Gaussian and then differentiate (equivalently,
+        convolve with DoG kernels). Using separability, DoG is computed as
+        \(G_x = g * g'_x\) and \(G_y = g' * g_y\) with 1-D filters.
+        DoG edges look cleaner than raw finite-difference edges.
+      </p>
+
+      <div class="grid">
+        <figure>
+          <img src="figs/dog_Gx.png" alt="DoG Gx">
+          <figcaption>DoG \(G_x\) (k=7, σ≈1.2).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/dog_Gy.png" alt="DoG Gy">
+          <figcaption>DoG \(G_y\) (k=7, σ≈1.2).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/dog_mag.png" alt="DoG magnitude">
+          <figcaption>DoG \(|\nabla f|\).</figcaption>
+        </figure>
+        <figure>
+          <img src="figs/dog_edges.png" alt="DoG edges">
+          <figcaption>DoG edges after thresholding.</figcaption>
+        </figure>
+      </div>
+
+      <h3>Snippet (separable DoG)</h3>
+      <pre><code>def gaussian_1d(ksize, sigma):
+    r = np.arange(-(ksize//2), ksize//2 + 1, dtype=np.float32)
+    g  = np.exp(-(r**2)/(2*sigma**2)); g /= g.sum()
+    gd = -(r/(sigma**2))*g; gd /= np.sum(np.abs(gd)) + 1e-8
+    return g, gd
+
+def conv_sep(img, kcol, krow):
+    tmp = convolve2d(img, kcol[:,None], mode='same', boundary='symm')
+    return convolve2d(tmp, krow[None,:], mode='same', boundary='symm')
+
+g, gd = gaussian_1d(7, 1.2)
+Gx = conv_sep(img, g,  gd)
+Gy = conv_sep(img, gd, g)
+mag = np.hypot(Gx, Gy)</code></pre>
+
+      <p class="muted">
+        Reflection: increasing σ smooths more aggressively and suppresses high-frequency texture;
+        ksize controls the spatial support of the smoothing. Compared to Part 1.2,
+        DoG reduces noise and produces more stable, contiguous edges.
+      </p>
+    </section>
+
+    <section>
+      <p class="muted"><a href="../index.html">← Back to Portfolio</a></p>
+    </section>
+  </main>
+</body>
+</html>

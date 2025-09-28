@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Project 1 by Leia</title>
+  <title>Project 2 by Leia</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     /* you can move this into styles.css */
@@ -17,51 +17,78 @@
 </head>
 <body>
   <header>
-    <h1>Project 1 by Leia</h1>
+    <h1>Project 2 by Leia</h1>
   </header>
 
   <main>
     <section>
-      <h2>About Me</h2>
-      <p>
-        I'm Leia (like the princess) an AI founder building at the intersection of healthcare and spiritual tech.
-        I grew up in Lima, Peru and study Computer Science & Economics at UC Berkeley.
-      </p>
-    </section>
+  <h2>Part 1: Fun with Filters</h2>
 
-    <section>
-      <h2>Part 1: Align Function</h2>
-      <h3>Monastery (PNG)</h3>
-      <img src="aligned/monastery.png" class="w300" alt="Aligned color result for Monastery">
-      <h4>Reflection</h4>
-      <p>
-        I crop ~10% off all sides before scoring to suppress plate borders/labels that bias NCC.
-        I search a local window (±15 px) and pick the displacement with the highest NCC.
-        Using <code>R</code> as the reference yields sharper edges and fewer color fringes than using <code>B</code>.
-      </p>
-      <p class="muted">Method: single-scale NCC; border crop ≈ 10%.</p>
-    </section>
+  <h3>1.1 Convolutions from Scratch</h3>
+  <p>
+    I implemented 2D convolution twice: a 4-loop “from first principles” version and a 2-loop
+    version that vectorizes the inner dot-product. I then verified my result against
+    <code>scipy.signal.convolve2d</code> (same padding/size).
+  </p>
 
-    <section>
-      <h2>Pyramid Function</h2>
-      <h3>Self-portrait (PNG preview)</h3>
-      <img src="aligned/self_portrait.png" class="w300" alt="Aligned color result for Self-portrait (PNG export)">
-      <p class="muted">
-        Note: Original input is <code>images/self_portrait.tif</code>. Browsers don’t display TIF reliably, so I exported a PNG for the site.
-      </p>
-      <h4>Reflection</h4>
-      <p>
-        A naive pyramid with <code>np.resize</code> tiled the image. I switched to proper resampling
-        (<code>skimage.transform.rescale</code> with anti-aliasing) and used NCC (optionally on Sobel edges)
-        across ~6–7 levels. After the coarse shift, a small ±3–4 px refine plus a final 10–14% crop removes residual color borders.
-      </p>
-      <p class="muted">Method: pyramid NCC (~6–7 levels), anti-aliased resampling; optional Sobel-NCC; crop ≈ 10–14%.</p>
-    </section>
+  <h4>Result: 9×9 Box Filter</h4>
+  <figure>
+    <img src="Proj2/figs/blur9.png" alt="Selfie with 9×9 Box Filter" class="w300">
+    <figcaption>Selfie convolved with a 9×9 box filter (box blur).</figcaption>
+  </figure>
 
-    <section>
-      <p class="muted"><a href="../index.html">← Back to Portfolio</a></p>
-    </section>
+  <h4>Result: Finite Differences</h4>
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items:start;">
+    <figure>
+      <img src="Proj2/figs/Gx.png" alt="Horizontal edges (Gx)">
+      <figcaption>Horizontal edges (Gx)</figcaption>
+    </figure>
+    <figure>
+      <img src="Proj2/figs/Gy.png" alt="Vertical edges (Gy)">
+      <figcaption>Vertical edges (Gy)</figcaption>
+    </figure>
+    <figure>
+      <img src="Proj2/figs/grad_mag.png" alt="Gradient magnitude">
+      <figcaption>Gradient magnitude</figcaption>
+    </figure>
+  </div>
 
-  </main>
-</body>
-</html>
+  <h4>Key Snippets (numpy-only)</h4>
+  <pre><code># 2-loop convolution (kernel is flipped inside)
+def conv2d_naive_2loops(img, kernel):
+    img = img.astype(np.float32)
+    k = np.array(kernel, dtype=np.float32)[::-1, ::-1]
+    H, W = img.shape; kh, kw = k.shape
+    ph, pw = kh//2, kw//2
+    p = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
+    out = np.zeros((H, W), dtype=np.float32)
+    for i in range(H):
+        for j in range(W):
+            region = p[i:i+kh, j:j+kw]
+            out[i, j] = np.sum(region * k)
+    return out
+
+# 9×9 box filter
+box9 = np.ones((9,9), np.float32) / 81.0
+blur9 = conv2d_naive_2loops(img, box9)
+
+# finite differences
+Dx = np.array([[1, -1]], np.float32)
+Dy = np.array([[1], [-1]], np.float32)
+Gx = conv2d_naive_2loops(img, Dx)
+Gy = conv2d_naive_2loops(img, Dy)
+mag = np.hypot(Gx, Gy)
+</code></pre>
+
+  <h4>Sanity Check vs SciPy</h4>
+  <pre><code>from scipy.signal import convolve2d
+scipy_blur = convolve2d(img, box9, mode='same', boundary='fill', fillvalue=0)
+print("MAE vs scipy:", np.abs(blur9 - scipy_blur).mean())</code></pre>
+
+  <h4>Reflection</h4>
+  <ul class="muted">
+    <li>Padding set to zero so my output size matches the input (mode='same').</li>
+    <li>Flipping the kernel distinguishes convolution from correlation.</li>
+    <li>2-loop version equals 4-loop but is much faster; both match SciPy up to fp error.</li>
+  </ul>
+</section>

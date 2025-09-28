@@ -21,6 +21,10 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
   <ul>
     <li><a href="Proj1/index.html">Project 1</a></li>
   </ul>
+- **Proj2/index.html** — Subpage for Project 2 with convolution, gaussian, & hybrid images.  
+  <ul>
+    <li><a href="Proj2/index.html">Project 2</a></li>
+  </ul>
 
 ## How to Navigate
 

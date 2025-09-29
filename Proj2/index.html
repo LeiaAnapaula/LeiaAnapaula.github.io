@@ -8,7 +8,7 @@
     :root { --w: 320px; --gap: 18px; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.45; margin: 0; color: #222; }
     header { padding: 28px 16px; border-bottom: 1px solid #eee; }
-    main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
     h1, h2, h3 { margin: 0.4em 0 0.35em; }
     section { margin: 36px 0 44px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w), 1fr)); gap: var(--gap); align-items: start; }
@@ -33,24 +33,14 @@
     <section id="part11">
       <h2>Part 1.1 — Convolutions from Scratch</h2>
       <p>
-        I implemented 2D convolution two ways: a <em>4-loop</em> version (over <code>H, W, kh, kw</code>) and a
-        faster <em>2-loop</em> version (loop over pixels and take an elementwise dot with the local patch).
-        As a sanity check, I compared to <code>scipy.signal.convolve2d</code> (MAE ≈ 1e-7).
+        I implemented 2D convolution two ways: a <em>4-loop</em> version and a faster
+        <em>2-loop</em> version. Verified against <code>scipy.signal.convolve2d</code>.
       </p>
 
-      <div class="grid">
-        <figure>
-          <img src="figs/blur9_selfie.png" alt="Selfie blurred with a 9x9 box filter">
-          <figcaption>Selfie with 9×9 box filter (averaging). Smooths fine detail by design.</figcaption>
-        </figure>
-      </div>
-
-      <h3>Key snippets</h3>
-      <p class="muted">4-loop convolution (kernel is flipped internally for true convolution):</p>
       <pre><code># 4-loop conv (numpy only)
 def conv2d_naive_4loops(img, kernel):
     img = img.astype(np.float32)
-    k = np.array(kernel, np.float32)[::-1, ::-1]          # flip
+    k = np.array(kernel, np.float32)[::-1, ::-1]  # flip
     H, W = img.shape; kh, kw = k.shape
     ph, pw = kh//2, kw//2
     p = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
@@ -64,8 +54,8 @@ def conv2d_naive_4loops(img, kernel):
             out[i, j] = acc
     return out</code></pre>
 
-      <p class="muted">2-loop version (vectorized inner patch):</p>
-      <pre><code>def conv2d_naive_2loops(img, kernel):
+      <pre><code># 2-loop conv (vectorized patch)
+def conv2d_naive_2loops(img, kernel):
     img = img.astype(np.float32)
     k = np.array(kernel, np.float32)[::-1, ::-1]
     H, W = img.shape; kh, kw = k.shape
@@ -85,28 +75,21 @@ def conv2d_naive_4loops(img, kernel):
     <section id="part12">
       <h2>Part 1.2 — Finite Difference Operator</h2>
       <p>
-        I convolved <em>cameraman</em> with finite-difference filters
-        \(D_x=[1,-1]\) and \(D_y=\begin{bmatrix}1\\-1\end{bmatrix}\) using <code>scipy.signal.convolve2d</code>,
-        then formed the gradient magnitude \( \sqrt{G_x^2 + G_y^2} \) and thresholded it to make a binary edge map.
+        Convolved <em>cameraman</em> with \(D_x=[1,-1]\) and \(D_y=[1\; -1]^T\), then formed 
+        \( \sqrt{G_x^2 + G_y^2} \) and thresholded it to make a binary edge map.
       </p>
 
+      <pre><code># Using convolve2d to compute finite differences
+gx = convolve2d(img, np.array([[1,-1]]), mode='same', boundary='symm')
+gy = convolve2d(img, np.array([[1],[-1]]), mode='same', boundary='symm')
+mag = np.sqrt(gx**2 + gy**2)
+edges = (mag > 0.1).astype(np.float32)</code></pre>
+
       <div class="grid">
-        <figure>
-          <img src="figs/cameraman_gx.png" alt="Gx">
-          <figcaption>Horizontal derivative \(G_x\) (sensitive to vertical edges).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_gy.png" alt="Gy">
-          <figcaption>Vertical derivative \(G_y\) (sensitive to horizontal edges).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_mag.png" alt="Gradient magnitude">
-          <figcaption>Gradient magnitude \(|\nabla f|\).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_edges.png" alt="Binarized edges">
-          <figcaption>Edges after thresholding (picked qualitatively to keep real edges, suppress noise).</figcaption>
-        </figure>
+        <figure><img src="figs/cameraman_gx.png"><figcaption>Gx.</figcaption></figure>
+        <figure><img src="figs/cameraman_gy.png"><figcaption>Gy.</figcaption></figure>
+        <figure><img src="figs/cameraman_mag.png"><figcaption>Magnitude.</figcaption></figure>
+        <figure><img src="figs/cameraman_edges.png"><figcaption>Edges after thresholding.</figcaption></figure>
       </div>
 
       <div class="hr"></div>
@@ -114,139 +97,112 @@ def conv2d_naive_4loops(img, kernel):
 
     <!-- ===================== Part 1.3 ===================== -->
     <section id="part13">
-      <h2>Part 1.3 — Derivative of Gaussian (DoG) Filter</h2>
+      <h2>Part 1.3 — Derivative of Gaussian (DoG)</h2>
       <p>
-        To reduce noise, I first smooth with a Gaussian and then differentiate (equivalently,
-        convolve with DoG kernels). The DoG edges look much cleaner than raw finite-difference edges
-        because the Gaussian pre-smoothing suppresses high-frequency noise before edge detection.
+        To reduce noise, I smooth with a Gaussian then differentiate (or use DoG kernels). 
+        Edges are much cleaner than raw finite differences.
       </p>
+
+      <pre><code># DoG filter example
+g = cv2.getGaussianKernel(ksize=7, sigma=1.5)
+gx = -np.arange(-3,4)/1.5**2 * g[:,0]  # derivative part
+dogx = convolve2d(img, gx[np.newaxis,:], mode='same', boundary='symm')</code></pre>
 
       <div class="grid">
-        <figure>
-          <img src="figs/cameraman_dogx.png" alt="DoG Gx">
-          <figcaption>DoG \(G_x\) after Gaussian smoothing.</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_dogy.png" alt="DoG Gy">
-          <figcaption>DoG \(G_y\) after Gaussian smoothing.</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_dogmag.png" alt="DoG magnitude">
-          <figcaption>DoG gradient magnitude \(|\nabla f|\).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/cameraman_dogf.png" alt="DoG edges">
-          <figcaption>DoG edges - cleaner and more contiguous than Part 1.2.</figcaption>
-        </figure>
+        <figure><img src="figs/cameraman_dogx.png"><figcaption>DoG \(G_x\).</figcaption></figure>
+        <figure><img src="figs/cameraman_dogy.png"><figcaption>DoG \(G_y\).</figcaption></figure>
+        <figure><img src="figs/grad_mag.png"><figcaption>DoG magnitude.</figcaption></figure>
       </div>
 
-      <p class="muted">
-        Reflection: Compared to Part 1.2, the DoG approach reduces noise and produces more stable, 
-        contiguous edges. The Gaussian smoothing with appropriate σ suppresses texture while preserving 
-        important structural edges.
-      </p>
-      
       <div class="hr"></div>
     </section>
 
     <!-- ===================== Part 2.1 ===================== -->
     <section id="part21">
-      <h2>Part 2.1 — Image "Sharpening"</h2>
+      <h2>Part 2.1 — Image “Sharpening” (Unsharp Mask)</h2>
       <p>
-        I implemented the unsharp masking technique: extract high frequencies by subtracting a 
-        Gaussian-blurred version from the original, then add them back with amplification. 
-        The formula is: <code>sharpened = image + α × (image - blur)</code>, where α controls 
-        sharpening intensity.
+        Unsharp masking: <code>sharpened = image + α × (image − blur)</code>.
       </p>
-
+    
       <h3>Taj Mahal</h3>
       <div class="grid">
-        <figure>
-          <img src="taj.jpg" alt="Taj original">
-          <figcaption>Taj Mahal (original).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/taj_unsharp.png" alt="Taj sharpened">
-          <figcaption>Taj Mahal sharpened (α=1.2, σ=1.2).</figcaption>
-        </figure>
+        <figure><img src="taj.jpg"><figcaption>Taj original.</figcaption></figure>
+        <figure><img src="figs/taj_unsharp.png"><figcaption>Taj sharpened.</figcaption></figure>
       </div>
-
+    
       <h3>Siblings</h3>
       <div class="grid">
-        <figure>
-          <img src="siblings.jpg" alt="Siblings original">
-          <figcaption>Siblings (original).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/siblings_unsharp.png" alt="Siblings sharpened">
-          <figcaption>Siblings sharpened (α=1.5, σ=1.0).</figcaption>
-        </figure>
+        <figure><img src="siblings.jpg"><figcaption>Siblings original.</figcaption></figure>
+        <figure><img src="figs/siblings_unsharp.png"><figcaption>Siblings sharpened (α=1.5, σ=1.0).</figcaption></figure>
       </div>
-
-      <h3>Evaluation: Blur then Sharpen</h3>
-      <p>
-        To test the limits of unsharp masking, I took a sharp image, artificially blurred it, 
-        then attempted to recover sharpness. Results show that while unsharp masking can enhance 
-        perceived sharpness, it cannot fully recover lost detail—information destroyed by blurring 
-        is gone forever.
+    
+      <h3>Blur → Sharpen Experiment</h3>
+      <p class="muted">
+        I picked a sharp image, blurred it, then tried to sharpen it again.  
+        Observations: The “recovered” image looks sharper and more detailed than the blurred version, 
+        but it cannot fully restore the lost high frequencies. Edges regain contrast but fine textures 
+        do not fully come back—showing unsharp masking enhances but does not recreate detail.
       </p>
-
       <div class="grid">
-        <figure>
-          <img src="figs/girls_original.png" alt="Original sharp">
-          <figcaption>Original sharp image.</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/girls_blurred.png" alt="Blurred">
-          <figcaption>Artificially blurred (σ=2.0).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/girls_recovered.png" alt="Recovered">
-          <figcaption>After unsharp masking—sharper but not identical to original.</figcaption>
-        </figure>
+        <figure><img src="figs/girls_original.png"><figcaption>Original.</figcaption></figure>
+        <figure><img src="figs/girls_blurred.png"><figcaption>Blurred.</figcaption></figure>
+        <figure><img src="figs/girls_recovered.png"><figcaption>Unsharp “recovered”.</figcaption></figure>
       </div>
-
+    
       <div class="hr"></div>
     </section>
 
     <!-- ===================== Part 2.2 ===================== -->
     <section id="part22">
       <h2>Part 2.2 — Hybrid Images</h2>
-      <p>
-        Following Oliva, Torralba, and Schyns (SIGGRAPH 2006), I created hybrid images by combining 
-        low frequencies from one image with high frequencies from another. When viewed up close, 
-        the high-frequency image dominates; from far away, only the low-frequency image is visible.
-      </p>
+      <p>Low frequencies from one image + high frequencies from another.</p>
 
-      <h3>Mom + Dad Hybrid</h3>
       <div class="grid">
-        <figure>
-          <img src="mom.jpg" alt="Mom">
-          <figcaption>Mom (will be low frequencies—visible close).</figcaption>
-        </figure>
-        <figure>
-          <img src="dad.jpg" alt="Dad">
-          <figcaption>Dad (will be high frequencies—visible far).</figcaption>
-        </figure>
-        <figure>
-          <img src="figs/mom_dad_hybrid.png" alt="Mom+Dad hybrid">
-          <figcaption>Hybrid result. Step back to see Dad!</figcaption>
-        </figure>
+        <figure><img src="mom.jpg"><figcaption>Mom (low frequencies).</figcaption></figure>
+        <figure><img src="dad.jpg"><figcaption>Dad (high frequencies).</figcaption></figure>
+        <figure><img src="figs/mom_dad_hybrid.png"><figcaption>Hybrid result.</figcaption></figure>
       </div>
-
-      <h3>Frequency Analysis</h3>
-      <p class="muted">
-        FFT magnitude visualizations show how the hybrid combines low frequencies (concentrated 
-        in the center) from one image with high frequencies (spread throughout) from another.
-        The log magnitude plots demonstrate the frequency separation clearly.
-      </p>
 
       <div class="hr"></div>
     </section>
 
-    <section>
-      <p class="muted"><a href="../index.html">← Back to Portfolio</a></p>
+    <!-- ===================== Part 2.4 ===================== -->
+    <section id="part24">
+      <h2>Part 2.4 — Multiresolution Blending</h2>
+    
+      <h3>Oraple (Vertical Seam)</h3>
+      <div class="grid">
+        <figure><img src="spline/apple.jpeg"><figcaption>Apple input.</figcaption></figure>
+        <figure><img src="spline/orange.jpeg"><figcaption>Orange input.</figcaption></figure>
+        <figure><img src="figs/oraple_vertical.png"><figcaption>Oraple blended result.</figcaption></figure>
+      </div>
+    
+      <h3>Messi Hair + Pope Face (Irregular Mask)</h3>
+      <div class="grid">
+        <figure><img src="spline/messi.jpg"><figcaption>Messi input.</figcaption></figure>
+        <figure><img src="spline/pope.jpg"><figcaption>Pope input.</figcaption></figure>
+        <figure><img src="spline/mask.png"><figcaption>Mask input.</figcaption></figure>
+        <figure><img src="figs/messi_pope_blend.png"><figcaption>Messi Hair + Pope Face blend.</figcaption></figure>
+      </div>
+    
+      <h3>Cotton Candy Dress (Irregular Mask)</h3>
+      <div class="grid">
+        <figure><img src="spline/cotton_candy.png"><figcaption>Cotton Candy texture.</figcaption></figure>
+        <figure><img src="spline/dress.png"><figcaption>Dress base image.</figcaption></figure>
+        <figure><img src="spline/dress_mask.png"><figcaption> Dress mask input.</figcaption></figure>
+        <figure><img src="figs/cotton_candy_dress.png"><figcaption>Cotton Candy Dress blended result.</figcaption></figure>
+      </div>
+    
+      <p class="muted">
+        I use <strong>Laplacian stacks</strong> for each input and a <strong>Gaussian stack</strong> of the mask.
+        At every level \(i\): <code>blend_i = mask_i · LapA_i + (1 - mask_i) · LapB_i</code>.
+        The final result is the sum over all blended levels. This follows Burt &amp; Adelson’s multiresolution blending and
+        smooths the transition across frequencies (fine detail to coarse structure).
+      </p>
+    
+      <div class="hr"></div>
     </section>
+
   </main>
 </body>
 </html>

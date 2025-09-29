@@ -173,6 +173,49 @@ dogx = convolve2d(img, gx[np.newaxis,:], mode='same', boundary='symm')</code></p
       <div class="hr"></div>
     </section>
 
+        <!-- ===================== Part 2.3 ===================== -->
+        <section id="part23">
+          <h2>Part 2.3 — Gaussian & Laplacian Stacks</h2>
+          <p>
+            I implemented functions <code>gaussian_stack(img, levels, sigma)</code> and 
+            <code>laplacian_stack(img, levels, sigma)</code>. Gaussian stacks are created by repeatedly 
+            blurring the image, while Laplacian stacks are formed by subtracting consecutive Gaussian levels. 
+            The last Laplacian level holds the most blurred residual. 
+          </p>
+    
+          <pre><code>def gaussian_stack(img, levels, sigma):
+        stack = [img.copy()]
+        current = img.copy()
+        for i in range(levels - 1):
+            current = gaussian_blur(current, sigma)
+            stack.append(current.copy())
+        return stack
+    
+    def laplacian_stack(img, levels, sigma):
+        gauss_stack = gaussian_stack(img, levels, sigma)
+        lap_stack = []
+        for i in range(levels - 1):
+            lap_stack.append(gauss_stack[i] - gauss_stack[i+1])
+        lap_stack.append(gauss_stack[-1])
+        return lap_stack</code></pre>
+    
+          <div class="grid">
+            <figure><img src="figs/laplacian_stacks_oraple.png"><figcaption>
+              Visualization of Gaussian & Laplacian stacks for Apple/Orange, matching Figure 3.42. 
+              Shows high, medium, low frequency bands and reconstruction.
+            </figcaption></figure>
+          </div>
+    
+          <p class="muted">
+            Each Gaussian level is smoother than the last, while each Laplacian level isolates 
+            different frequency bands. Summing across all Laplacian levels reconstructs the 
+            original image. These stacks are the foundation for the seamless blending in Part 2.4.
+          </p>
+    
+          <div class="hr"></div>
+        </section>
+
+
     <!-- ===================== Part 2.4 ===================== -->
     <section id="part24">
       <h2>Part 2.4 — Multiresolution Blending</h2>

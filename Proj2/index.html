@@ -68,6 +68,13 @@ def conv2d_naive_2loops(img, kernel):
             out[i, j] = np.sum(region * k)
     return out</code></pre>
 
+      <div class="grid">
+        <figure><img src="figs/blur9.png"><figcaption>Blurred Selfie</figcaption></figure>
+        <figure><img src="figs/Gx.png"><figcaption>Partial Derivative Gx Selfie</figcaption></figure>
+        <figure><img src="figs/Gy.png"><figcaption>Partial Derivative Gy Selfie</figcaption></figure>
+        <figure><img src="figs/grad_mag.png"><figcaption>Gradient Magnitude Selfie</figcaption></figure>
+      </div>
+
       <div class="hr"></div>
     </section>
 

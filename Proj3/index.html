@@ -1,1 +1,54 @@
-!DOCTYPE = html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Proj 3 — Image Warping & Mosaicing (Leia)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    body{font-family:system-ui,Helvetica,Arial,sans-serif;max-width:980px;margin:40px auto;padding:0 16px;line-height:1.5}
+    h1,h2{margin:0.6em 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row img{max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+    figure{margin:0 0 16px}
+    figcaption{font-size:.9em;color:#555}
+    code{background:#f6f8fa;padding:2px 6px;border-radius:6px}
+    table{border-collapse:collapse}
+    td,th{border:1px solid #ddd;padding:6px 8px}
+  </style>
+</head>
+<body>
+  <h1>Project 3: Image Warping & Mosaicing</h1>
+  <p>By Leia — CS180/280A. All code written from scratch (no <code>cv2.findHomography</code>, <code>cv2.warpPerspective</code>, etc.).</p>
+
+  <h2>A.1 Shoot & Digitize</h2>
+  <div class="row">
+    <figure><img src="assets/imgs/src_left.png"  alt="Left"><figcaption>Left view (Wheeler Hall)</figcaption></figure>
+    <figure><img src="assets/imgs/src_right.png" alt="Right"><figcaption>Right view (≈50% overlap)</figcaption></figure>
+  </div>
+
+  <h2>A.2 Recover Homography</h2>
+  <figure><img src="assets/imgs/correspondences.png" alt="Correspondences">
+    <figcaption>Manually clicked correspondences (8–10 pairs). DLT + Hartley normalization + RANSAC.</figcaption>
+  </figure>
+  <p><strong>Recovered H (right → left):</strong></p>
+  <table id="H-table"></table>
+
+  <h2>A.3 Warp Images</h2>
+  <div class="row">
+    <figure><img src="assets/imgs/warp_nn.png" alt="NN"><figcaption>Nearest Neighbor (fast, blocky)</figcaption></figure>
+    <figure><img src="assets/imgs/warp_bilinear.png" alt="Bilinear"><figcaption>Bilinear (smooth, better quality)</figcaption></figure>
+  </div>
+  <div class="row">
+    <figure><img src="assets/imgs/rectified1.png" alt="Rect1"><figcaption>Rectification #1</figcaption></figure>
+    <figure><img src="assets/imgs/rectified2.png" alt="Rect2"><figcaption>Rectification #2</figcaption></figure>
+  </div>
+
+  <h2>A.4 Mosaics</h2>
+  <div class="row">
+    <figure><img src="assets/imgs/mosaic1.png" alt="Mosaic1"><figcaption>Feather blend</figcaption></figure>
+    <!-- add mosaic2.png, mosaic3.png similarly -->
+  </div>
+
+</body>
+</html>

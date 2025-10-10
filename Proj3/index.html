@@ -100,7 +100,7 @@
 
       <h3>Wheeler Correspondences</h3>
       <figure><img src="assets/imgs/A2_wheeler_correspondences.png"><figcaption>
-        8 point correspondences visualized. Color-coded lines connect matching features between left and right views.
+        8-point correspondences visualized. Color-coded lines connect matching features between left and right views.
       </figcaption></figure>
 
       <table>
@@ -175,18 +175,11 @@
                 )
     return out</code></pre>
 
-      <h3>Rectification: Startups Poster</h3>
+      <h3>Rectification: Startups Poster & Mother Mary</h3>
       <div class="grid grid-3">
-        <figure><img src="assets/imgs/startups.png"><figcaption>Original (tilted)</figcaption></figure>
-        <figure><img src="assets/imgs/startups_nn.png"><figcaption>Nearest Neighbor</figcaption></figure>
-        <figure><img src="assets/imgs/startups_bilinear.png"><figcaption>Bilinear (smoother)</figcaption></figure>
-      </div>
-
-      <h3>Rectification: Mary Poster</h3>
-      <div class="grid grid-3">
-        <figure><img src="assets/imgs/MMary.png"><figcaption>Original (perspective)</figcaption></figure>
-        <figure><img src="assets/imgs/mary_nn.png"><figcaption>Nearest Neighbor</figcaption></figure>
-        <figure><img src="assets/imgs/mary_bilinear.png"><figcaption>Bilinear (smoother)</figcaption></figure>
+        <figure><img src="assets/imgs/startups.png"><figcaption>Original Startups Banner</figcaption></figure>
+        <figure><img src="assets/imgs/MMary.png"><figcaption>Original Mother Mary</figcaption></figure>
+        <figure><img src="assets/imgs/A3_rectification_comparison.png"><figcaption>Rectification of both images</figcaption></figure>
       </div>
 
       <p class="muted">
@@ -217,25 +210,15 @@
         <li>Feather blend: <code>result = (left × α_L + right × α_R) / (α_L + α_R)</code></li>
       </ol>
 
-      <h3>Mosaic 1: Wheeler Hall</h3>
+      <h3>Mosaics: Wheeler Hall, Hearst Mining Building & Hallway</h3>
       <div class="grid grid-3">
         <figure><img src="assets/imgs/left_a1.png"><figcaption>Left (reference)</figcaption></figure>
         <figure><img src="assets/imgs/right_a1.png"><figcaption>Right (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/wheeler_mosaic.png"><figcaption>Wheeler Panorama</figcaption></figure>
-      </div>
-
-      <h3>Mosaic 2: Hearst Mining Building</h3>
-      <div class="grid grid-3">
         <figure><img src="assets/imgs/hearst_left.png"><figcaption>Left (reference)</figcaption></figure>
         <figure><img src="assets/imgs/hearst_right.png"><figcaption>Right (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_mosaic.png"><figcaption>Hearst Panorama</figcaption></figure>
-      </div>
-
-      <h3>Mosaic 3: Hallway</h3>
-      <div class="grid grid-3">
         <figure><img src="assets/imgs/hallway1.png"><figcaption>Hallway 1 (reference)</figcaption></figure>
         <figure><img src="assets/imgs/hallway2.png"><figcaption>Hallway 2 (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/hallway_mosaic.png"><figcaption>Hallway Panorama</figcaption></figure>
+        <figure><img src="assets/imgs/A4_mosaics.png"><figcaption>Hallway Panorama</figcaption></figure>
       </div>
 
       <p class="muted">

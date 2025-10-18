@@ -256,123 +256,88 @@
 
     
 
-    <!-- ===================== Part B.1 ===================== -->
-    <section id="a1">
-      <h2>B.1 — Detecting corner features in an image</h2>
+      <!-- ===================== Part B.1 ===================== -->
+    <section id="b1">
+      <h2>B.1 — Detecting Corner Features (Harris + ANMS)</h2>
       <p>
-        I detected the corners of the Hearst image using the Harris corners technique explained in section 2 of the paper and also
-        with the help of the provided code :)
+        I detect Harris corners (single scale) and then apply Adaptive Non-Maximal Suppression (ANMS) to keep ~500 well-distributed points.
+        The figure shows Hearst Left with <em>all</em> Harris detections (left) and the ANMS subset (right).
       </p>
-
-      <h3>Dataset 1: Wheeler Hall</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
-      </p>
-
-      <h3>Dataset 2: Hearst Mining Building</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
-      </p>
-
+    
+      <figure class="full">
+        <img src="assets/imgs/B1_harriscorners.png" alt="Harris vs ANMS on Hearst Left">
+        <figcaption>Harris detections vs. ANMS (Hearst Left)</figcaption>
+      </figure>
+    
       <div class="hr"></div>
     </section>
-
-
+    
+    
     <!-- ===================== Part B.2 ===================== -->
-    <section id="a1">
-      <h2>B.2 — Feature Descriptor Extraction</h2>
+    <section id="b2">
+      <h2>B.2 — Feature Descriptor Extraction (8×8 patches)</h2>
       <p>
-        I detected the corners of the Hearst image using the Harris corners technique explained in section 2 of the paper and also
-        with the help of the provided code :)
+        Around each selected keypoint, I sample a 40×40 grayscale window from a blurred image, bilinearly downsample to 8×8, and bias/gain normalize.
+        Below: five random keypoints (top) and their 8×8 descriptors (bottom).
       </p>
-
-      <h3>Dataset 1: Wheeler Hall</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
-      </p>
-
-      <h3>Dataset 2: Hearst Mining Building</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
-      </p>
-
+    
+      <figure class="full">
+        <img src="assets/imgs/B2_featuredescriptor.png" alt="Sample 8×8 descriptors on Hearst Left">
+        <figcaption>Random sample of 8×8 normalized patch descriptors (Hearst Left)</figcaption>
+      </figure>
+    
       <div class="hr"></div>
     </section>
-
+    
+    
     <!-- ===================== Part B.3 ===================== -->
-    <section id="a1">
-      <h2>B.3 — Feature Matching</h2>
+    <section id="b3">
+      <h2>B.3 — Feature Matching (Lowe Ratio Test)</h2>
       <p>
-        I detected the corners of the Hearst image using the Harris corners technique explained in section 2 of the paper and also
-        with the help of the provided code :)
+        I match descriptors from Hearst Left → Right using the Lowe ratio test (threshold = 0.7). This shows raw correspondences prior to any geometric filtering
+        (so some outliers are expected and will be removed by RANSAC in B.4).
       </p>
-
-      <h3>Dataset 1: Wheeler Hall</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
-      </p>
-
-      <h3>Dataset 2: Hearst Mining Building</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
-      </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
-      </p>
-
+    
+      <figure class="full">
+        <img src="assets/imgs/B3_featurematching.png" alt="Raw descriptor matches between Hearst Left and Right">
+        <figcaption>Raw descriptor matches (yellow lines), red/green = keypoints</figcaption>
+      </figure>
+    
       <div class="hr"></div>
     </section>
-
+    
+    
     <!-- ===================== Part B.4 ===================== -->
-    <section id="a1">
-      <h2>B.4 — RANSAC for Robust Homography</h2>
+    <section id="b4">
+      <h2>B.4 — RANSAC for Robust Homography + Mosaics</h2>
       <p>
-        I detected the corners of the Hearst image using the Harris corners technique explained in section 2 of the paper and also
-        with the help of the provided code :)
+        Using 4-point RANSAC with normalized DLT and symmetric transfer error, I estimate homographies and build mosaics with simple alpha blending.
+        Shown below are three automatic mosaics (Hearst, Wheeler, Hallway).
       </p>
-
-      <h3>Dataset 1: Wheeler Hall</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_hearst.png" alt="Hearst mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Hearst</figcaption>
+        </figure>
       </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
-      </p>
-
-      <h3>Dataset 2: Hearst Mining Building</h3>
-      <div class="grid grid-2">
-        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_wheeler.png" alt="Wheeler mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Wheeler</figcaption>
+        </figure>
       </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
-      </p>
-
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_hallway.png" alt="Hallway mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Hallway</figcaption>
+        </figure>
+      </div>
+    
       <div class="hr"></div>
     </section>
-
     
   </main>
 </body>

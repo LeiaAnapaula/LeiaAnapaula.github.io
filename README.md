@@ -25,6 +25,10 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
   <ul>
     <li><a href="Proj2/index.html">Project 2</a></li>
   </ul>
+- **Proj3/index.html** — Subpage for Project 3 with Homography, Mosaicing, & Harris Corners.  
+  <ul>
+    <li><a href="Proj3/index.html">Project 3</a></li>
+  </ul>
 
 ## How to Navigate
 

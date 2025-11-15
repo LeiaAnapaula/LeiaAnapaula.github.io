@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CS180 – Project 3 Part A by Leia</title>
+  <title>CS180 – Project 4 by Leia</title>
   <style>
     :root { --w: 320px; --gap: 18px; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.45; margin: 0; color: #222; }
@@ -29,20 +29,20 @@
 </head>
 <body>
   <header>
-    <h1>Project 3A – Image Warping and Mosaicing <span class="pill">Leia</span></h1>
+    <h1>Project 4 - Neural Radiance Fields <span class="pill">Leia</span></h1>
     <p class="muted">CS180 • Fall 2025</p>
   </header>
 
   <main>
-    <!-- ===================== Part A.1 ===================== -->
+    <!-- ===================== Part 0 ===================== -->
     <section id="a1">
-      <h2>A.1 — Shoot the Pictures</h2>
+      <h2>Part 0.1: Calibrating Your Camera</h2>
       <p>
         I captured two sets of image pairs with projective transformations by fixing the center 
         of projection and rotating the camera. Each pair has 40-70% overlap for robust registration.
       </p>
 
-      <h3>Dataset 1: Wheeler Hall</h3>
+      <h3>Part 0.2: Capturing a 3D Object Scan</h3>
       <div class="grid grid-2">
         <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
         <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
@@ -51,7 +51,16 @@
         Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
       </p>
 
-      <h3>Dataset 2: Hearst Mining Building</h3>
+      <h3>Part 0.3: Estimating Camera Pose</h3>
+      <div class="grid grid-2">
+        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
+      </div>
+      <p class="muted">
+        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
+      </p>
+
+      <h3>Part 0.4: Undistorting images and creating a dataset</h3>
       <div class="grid grid-2">
         <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
         <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
@@ -63,9 +72,9 @@
       <div class="hr"></div>
     </section>
 
-    <!-- ===================== Part A.2 ===================== -->
+    <!-- ===================== Part 1 ===================== -->
     <section id="a2">
-      <h2>A.2 — Recover Homographies</h2>
+      <h2>Fit a Neural Field to a 2D Image</h2>
       <p>
         Implemented <code>computeH(im1_pts, im2_pts)</code> using the <strong>Ah=b formulation</strong> 
         with 8 degrees of freedom (H[2,2]=1 fixed). The function sets up a linear system from point 
@@ -135,209 +144,288 @@
       <div class="hr"></div>
     </section>
 
-    <!-- ===================== Part A.3 ===================== -->
+        <!-- ===================== Part 2 ===================== -->
     <section id="a3">
-      <h2>A.3 — Warp the Images</h2>
+      <h2>Part 2.1: Creating Rays from Cameras</h2>
       <p>
-        Implemented two interpolation methods using <strong>inverse warping</strong> to avoid holes.
-        For each output pixel, we map back to the source image using H<sup>-1</sup>.
+        For each training image I convert camera intrinsics and extrinsics into a dense grid of
+        <em>rays</em>. A ray is defined by an origin <code>o</code> (camera center in world space) and
+        a direction <code>d</code> (unprojected pixel through the camera). This lets the network operate
+        directly in 3D, independent of image resolution.
       </p>
 
-      <h3>Interpolation Methods</h3>
-      <ul>
-        <li><strong>Nearest Neighbor:</strong> Rounds source coordinates to nearest pixel. Fast but shows aliasing.</li>
-        <li><strong>Bilinear:</strong> Weighted average of 4 neighboring pixels. Smoother but ~4× slower.</li>
-      </ul>
+      <pre><code># get_rays: K is intrinsics, c2w is camera-to-world transform
+def get_rays(H, W, K, c2w):
+    i, j = torch.meshgrid(
+        torch.arange(W, device=K.device),
+        torch.arange(H, device=K.device),
+        indexing="xy",
+    )
+    pixels = torch.stack([(i - K[0, 2]) / K[0, 0],
+                          (j - K[1, 2]) / K[1, 1],
+                          torch.ones_like(i)], dim=-1)  # (H, W, 3)
 
-      <pre><code>def warpImageBilinear(im, H):
-    # Compute output bounding box
-    corners_warped = transform_corners(im.shape, H)
-    x_min, y_min, x_max, y_max = get_bbox(corners_warped)
-    
-    H_inv = np.linalg.inv(H)
-    out = np.zeros((y_max - y_min, x_max - x_min, 3))
-    
-    for y_out in range(out.shape[0]):
-        for x_out in range(out.shape[1]):
-            # Map to source coordinates
-            x_src, y_src = apply_inverse_H(x_out + x_min, y_out + y_min, H_inv)
-            
-            # Bilinear interpolation
-            x0, y0 = int(np.floor(x_src)), int(np.floor(y_src))
-            wx, wy = x_src - x0, y_src - y0
-            
-            if in_bounds(x0, y0, x0+1, y0+1, im.shape):
-                out[y_out, x_out] = (
-                    im[y0, x0] * (1-wx) * (1-wy) +
-                    im[y0, x0+1] * wx * (1-wy) +
-                    im[y0+1, x0] * (1-wx) * wy +
-                    im[y0+1, x0+1] * wx * wy
-                )
-    return out</code></pre>
+    # Rotate into world space and normalize
+    dirs = (pixels[..., None, :] @ c2w[:3, :3].T)[..., 0]
+    dirs = dirs / torch.norm(dirs, dim=-1, keepdim=True)
 
-      <h3>Rectification: Startups Poster & Mother Mary</h3>
-      <div class="grid grid-3">
-        <figure><img src="assets/imgs/startups.png"><figcaption>Original Startups Banner</figcaption></figure>
-        <figure><img src="assets/imgs/MMary.png"><figcaption>Original Mother Mary</figcaption></figure>
-        <figure><img src="assets/imgs/A3_rectification_comparison.png"><figcaption>Rectification of both images</figcaption></figure>
+    # Same origin for all pixels: camera center in world coords
+    origins = c2w[:3, 3].expand_as(dirs)
+    return origins, dirs</code></pre>
+
+      <div class="grid grid-2">
+        <figure>
+          <img src="assets/imgs/lego_train_sample.png" alt="Lego training image">
+          <figcaption>Example training image from the Lego multi-view dataset.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/rays_3d_vis.png" alt="3D rays visualization">
+          <figcaption>3D visualization of rays emitted from one camera into the scene.</figcaption>
+        </figure>
       </div>
 
       <p class="muted">
-        <strong>Quality Comparison:</strong> Bilinear interpolation produces noticeably smoother edges 
-        and reduces jaggedness, especially visible in text and fine details. Nearest neighbor is faster 
-        but exhibits pixelation artifacts.
+        Each pixel now corresponds to a ray in world space. These rays drive all later steps:
+        sampling points along them, querying the NeRF network, and volume rendering back into
+        pixel colors.
       </p>
 
       <div class="hr"></div>
-    </section>
 
-    <!-- ===================== Part A.4 ===================== -->
-    <section id="a4">
-      <h2>A.4 — Blend Images into a Mosaic</h2>
+      <h2>Part 2.2: Sampling Points Along Rays</h2>
       <p>
-        Created panoramic mosaics using <strong>feather blending</strong> with distance-based alpha masks.
-        The left image remains unwarped (reference frame) while the right image is warped into its 
-        coordinate system. Weighted averaging in overlap regions reduces visible seams.
+        Along each ray I sample <code>N=64</code> points between near and far bounds
+        (<code>t ∈ [2.0, 6.0]</code>). The sampling is stratified: I divide the interval into equal
+        bins and jitter a single sample inside each bin. This reduces aliasing and gives smoother
+        reconstructions.
       </p>
 
-      <h3>Blending Algorithm</h3>
-      <ol>
-        <li>Compute homography H mapping right → left</li>
-        <li>Determine canvas size to hold both images</li>
-        <li>Place left image unwarped on canvas</li>
-        <li>Warp right image using bilinear interpolation</li>
-        <li>Create distance-based alpha masks (using cv2.distanceTransform)</li>
-        <li>Feather blend: <code>result = (left × α_L + right × α_R) / (α_L + α_R)</code></li>
-      </ol>
+      <pre><code>def sample_points(rays_o, rays_d, N_samples, near=2.0, far=6.0):
+    R = rays_o.shape[0]
+    t_vals = torch.linspace(near, far, N_samples, device=rays_o.device)  # (N,)
+    # Stratified jitter within each bin
+    mids = 0.5 * (t_vals[:-1] + t_vals[1:])
+    upper = torch.cat([mids, t_vals[-1:]], dim=0)
+    lower = torch.cat([t_vals[:1], mids], dim=0)
+    t_rand = torch.rand((R, N_samples, 1), device=rays_o.device)
+    t = (lower[None, :, None] + (upper - lower)[None, :, None] * t_rand)
+    # 3D positions along the ray
+    pts = rays_o[:, None, :] + rays_d[:, None, :] * t
+    step_size = (far - near) / N_samples
+    return pts, t, step_size</code></pre>
 
-      <h3>Mosaics: Wheeler Hall, Hearst Mining Building & Hallway</h3>
-      <div class="grid grid-3">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Left (reference)</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Right (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Left (reference)</figcaption></figure>
-        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Right (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/hallway1.png"><figcaption>Hallway 1 (reference)</figcaption></figure>
-        <figure><img src="assets/imgs/hallway2.png"><figcaption>Hallway 2 (to warp)</figcaption></figure>
-        <figure><img src="assets/imgs/A4_mosaics.png"><figcaption>Hallway Panorama</figcaption></figure>
+      <div class="grid grid-2">
+        <figure>
+          <img src="assets/imgs/rays_samples_vis.png" alt="Rays and samples visualization">
+          <figcaption>Visualization of up to 100 rays and their sampled 3D points.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/depth_debug_vis.png" alt="Depth along rays">
+          <figcaption>Color-coded depth values for sampled points along each ray.</figcaption>
+        </figure>
       </div>
 
       <p class="muted">
-        <strong>Observations:</strong> Feather blending successfully eliminates hard seams in the overlap 
-        regions. The distance transform ensures smooth transitions by giving more weight to pixels farther 
-        from image edges. Small misalignments are visible in high-frequency areas (text, fine details) due 
-        to manual correspondence selection, but overall registration is good.
+        Sampling points turns each ray into a small 1D volume. The NeRF network predicts color and
+        density at these points, which we then integrate with volume rendering.
       </p>
 
       <div class="hr"></div>
-    </section>
 
-    <!-- ===================== Reflection ===================== -->
-    <section id="reflection">
-      <h2>What I Learned</h2>
+      <h2>Part 2.3: Neural Radiance Field Network</h2>
       <p>
-        The coolest part of this project was seeing how <strong>homographies bridge geometry and image processing</strong>.
-        By clicking just 8 points, we can warp entire images into alignment it's amazing how much structure 
-        is captured in a 3×3 matrix! Implementing inverse warping taught me why we need it (no holes) and 
-        why bilinear interpolation matters for visual quality.
+        I use a multi-layer perceptron that maps position (and viewing direction) to density and RGB.
+        Inputs are first passed through a <strong>positional encoding</strong> to allow the MLP to
+        represent high-frequency details.
       </p>
-      <p>
-        The biggest challenge was getting correspondences right. A few pixel error propagates through the 
-        homography and creates visible ghosting in the mosaic. I learned that <strong>precision in point 
-        selection is critical</strong>-choosing distinctive corner features rather than smooth regions made 
-        a huge difference in final alignment quality.
-      </p>
-      <p>
-        Feather blending was surprisingly effective! The distance transform naturally weights pixels, 
-        creating smooth transitions without manual tuning. This project showed me how classical computer 
-        vision techniques (homographies, multi-resolution blending) form the foundation for modern 
-        panorama stitching algorithms.
-      </p>
-    </section>
 
-    
+      <pre><code>class NeRF(nn.Module):
+    def __init__(self, pos_dim=3, dir_dim=3, hidden_dim=256):
+        super().__init__()
+        in_pos = pos_dim * 2 * 10  # 10 frequency bands
+        in_dir = dir_dim * 2 * 4   # 4 frequency bands
 
-      <!-- ===================== Part B.1 ===================== -->
-    <section id="b1">
-      <h2>B.1 — Detecting Corner Features (Harris + ANMS)</h2>
-      <p>
-        I detect Harris corners (single scale) and then apply Adaptive Non-Maximal Suppression (ANMS) to keep ~500 well-distributed points.
-        The figure shows Hearst Left with <em>all</em> Harris detections (left) and the ANMS subset (right).
-      </p>
-    
-      <figure class="full">
-        <img src="assets/imgs/B1_harriscorners.png" alt="Harris vs ANMS on Hearst Left">
-        <figcaption>Harris detections vs. ANMS (Hearst Left)</figcaption>
-      </figure>
-    
-      <div class="hr"></div>
-    </section>
-    
-    
-    <!-- ===================== Part B.2 ===================== -->
-    <section id="b2">
-      <h2>B.2 — Feature Descriptor Extraction (8×8 patches)</h2>
-      <p>
-        Around each selected keypoint, I sample a 40×40 grayscale window from a blurred image, bilinearly downsample to 8×8, and bias/gain normalize.
-        Below: five random keypoints (top) and their 8×8 descriptors (bottom).
-      </p>
-    
-      <figure class="full">
-        <img src="assets/imgs/B2_featuredescriptor.png" alt="Sample 8×8 descriptors on Hearst Left">
-        <figcaption>Random sample of 8×8 normalized patch descriptors (Hearst Left)</figcaption>
-      </figure>
-    
-      <div class="hr"></div>
-    </section>
-    
-    
-    <!-- ===================== Part B.3 ===================== -->
-    <section id="b3">
-      <h2>B.3 — Feature Matching (Lowe Ratio Test)</h2>
-      <p>
-        I match descriptors from Hearst Left → Right using the Lowe ratio test (threshold = 0.7). This shows raw correspondences prior to any geometric filtering
-        (so some outliers are expected and will be removed by RANSAC in B.4).
-      </p>
-    
-      <figure class="full">
-        <img src="assets/imgs/B3_featurematching.png" alt="Raw descriptor matches between Hearst Left and Right">
-        <figcaption>Raw descriptor matches (yellow lines), red/green = keypoints</figcaption>
-      </figure>
-    
-      <div class="hr"></div>
-    </section>
-    
-    
-    <!-- ===================== Part B.4 ===================== -->
-    <section id="b4">
-      <h2>B.4 — RANSAC for Robust Homography + Mosaics</h2>
-      <p>
-        Using 4-point RANSAC with normalized DLT and symmetric transfer error, I estimate homographies and build mosaics with simple alpha blending.
-        Shown below are three automatic mosaics (Hearst, Wheeler, Hallway).
-      </p>
-    
-      <div class="grid grid-1">
-        <figure class="full">
-          <img src="assets/imgs/B4_ransac_hearst.png" alt="Hearst mosaic built with RANSAC homography">
-          <figcaption>Automatic Mosaic — Hearst</figcaption>
+        self.mlp_pos = nn.Sequential(
+            nn.Linear(in_pos, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+        )
+        self.sigma_head = nn.Linear(hidden_dim, 1)
+
+        self.mlp_rgb = nn.Sequential(
+            nn.Linear(hidden_dim + in_dir, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, 3), nn.Sigmoid()
+        )
+
+    def forward(self, pts_enc, dirs_enc):
+        h = self.mlp_pos(pts_enc)
+        sigma = F.relu(self.sigma_head(h))
+        h_rgb = torch.cat([h, dirs_enc], dim=-1)
+        rgb = self.mlp_rgb(h_rgb)
+        return sigma, rgb</code></pre>
+
+      <div class="grid grid-2">
+        <figure>
+          <img src="assets/imgs/network_diagram.png" alt="Network diagram">
+          <figcaption>Diagram of the NeRF MLP: positional encoding → shared trunk → σ and RGB heads.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/pe_vs_nope.png" alt="Effect of positional encoding">
+          <figcaption>Without positional encoding the network blurs details; with it, high-frequency
+          geometry and textures are preserved.</figcaption>
         </figure>
       </div>
-    
-      <div class="grid grid-1">
-        <figure class="full">
-          <img src="assets/imgs/B4_ransac_wheeler.png" alt="Wheeler mosaic built with RANSAC homography">
-          <figcaption>Automatic Mosaic — Wheeler</figcaption>
+
+      <div class="hr"></div>
+
+      <h2>Part 2.5: Volume Rendering</h2>
+      <p>
+        Given per-point densities <code>σᵢ</code> and colors <code>cᵢ</code> along each ray, I implement
+        the discrete volume rendering equation in PyTorch. The key idea is to treat the ray as a
+        semi-transparent volume and compute how much light is absorbed and emitted at each step.
+      </p>
+
+      <pre><code>def volrend(sigmas, rgbs, step_size):
+    """
+    sigmas: (B, N, 1) densities along each ray
+    rgbs:   (B, N, 3) colors at those samples
+    step_size: scalar distance between samples
+    returns: (B, 3) rendered colors
+    """
+    sigma_delta = sigmas * step_size                 # (B, N, 1)
+    alphas = 1.0 - torch.exp(-sigma_delta)          # αᵢ = 1 - exp(-σᵢ δ)
+
+    cumsum_sigma_delta = torch.cumsum(sigma_delta, dim=1)
+    accum_before = cumsum_sigma_delta - sigma_delta # ∑_{j&lt;i} σⱼ δ
+
+    T = torch.exp(-accum_before)                    # Tᵢ = exp(-∑_{j&lt;i} σⱼ δ)
+    weights = T * alphas                            # wᵢ = Tᵢ αᵢ
+
+    return torch.sum(weights * rgbs, dim=1)         # ∑ wᵢ cᵢ</code></pre>
+
+      <p class="muted">
+        Intuitively, <code>Tᵢ</code> is the probability the ray has not terminated before sample i,
+        and <code>αᵢ</code> is the probability it terminates <em>at</em> i. Their product gives a
+        weight for each sample, and summing the weighted colors yields the final pixel color. This
+        function is fully differentiable and passes the provided assertion test.
+      </p>
+
+      <div class="grid grid-3">
+        <figure>
+          <img src="assets/imgs/volume_diagram.png" alt="Volume rendering diagram">
+          <figcaption>Diagram of transmittance and alpha along a single ray.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/volrend_unit_test.png" alt="Unit test for volrend">
+          <figcaption>Unit test comparison: my implementation matches the reference values.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/volrend_debug_render.png" alt="Debug render">
+          <figcaption>Debug render of randomly initialized network using the volume renderer.</figcaption>
         </figure>
       </div>
-    
-      <div class="grid grid-1">
-        <figure class="full">
-          <img src="assets/imgs/B4_ransac_hallway.png" alt="Hallway mosaic built with RANSAC homography">
-          <figcaption>Automatic Mosaic — Hallway</figcaption>
-        </figure>
-      </div>
-    
+
       <div class="hr"></div>
     </section>
+
+    <!-- ===================== Part 2.6 ===================== -->
+<section id="a4">
+  <h2>Part 2.6: Training NeRF on My Own Captured Object</h2>
+  <p>
+    Instead of the provided Lego dataset, I captured my own multi-view scene using a drink cup placed
+    on a sheet of white paper. I moved around the object in a circular path and recorded images with
+    noticeable parallax. These images became the training set for my NeRF.
+  </p>
+
+  <div class="grid grid-2">
+    <figure>
+      <img src="assets/imgs/drink_raw_01.jpg">
+      <figcaption>Example raw training image.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/imgs/drink_raw_02.jpg">
+      <figcaption>Another view from the capture sequence.</figcaption>
+    </figure>
+  </div>
+
+  <p class="muted">
+    I estimated camera intrinsics/extrinsics using COLMAP, converted intrinsics to the NeRF
+    coordinate system, and generated rays for each pixel exactly as in Part 2.1.
+    This produced a complete multi-view dataset of my drink for NeRF training.
+  </p>
+
+  <h3>Training Setup</h3>
+  <p>
+    I train using batches of <strong>10,000 random rays</strong> per step, each with
+    <strong>64 stratified samples</strong> along the ray. For each batch:
+  </p>
+
+  <ol>
+    <li>Randomly sample rays across all cameras.</li>
+    <li>Sample positions <code>t</code> along each ray.</li>
+    <li>Query the NeRF MLP to get <code>(σᵢ, cᵢ)</code>.</li>
+    <li>Apply my volume renderer (Part 2.5) to integrate along the ray.</li>
+    <li>Compare with ground-truth pixel colors using MSE loss.</li>
+  </ol>
+
+  <pre><code>loss = F.mse_loss(pred_rgb, target_rgb)
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()</code></pre>
+
+  <div class="grid grid-3">
+    <figure>
+      <img src="assets/imgs/drink_iter_000.png">
+      <figcaption>Iteration 0 — network untrained.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/imgs/drink_iter_200.png">
+      <figcaption>Iteration 200 — basic silhouette forms.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/imgs/drink_iter_1000.png">
+      <figcaption>Iteration 1000 — cup geometry and texture appear.</figcaption>
+    </figure>
+  </div>
+
+  <h3>PSNR on My Custom Validation Set</h3>
+  <figure>
+    <img src="assets/imgs/drink_psnr_curve.png">
+    <figcaption>
+      PSNR curve computed on six held-out camera poses from my drink dataset.
+      The model steadily improves and reaches &gt; 23 dB.
+    </figcaption>
+  </figure>
+
+  <h3>Novel Views + Spherical Rendering</h3>
+  <p>
+    After training, I rendered novel viewpoints of the cup by placing virtual cameras in a circular
+    orbit around the object. This demonstrates that the NeRF learned a coherent 3D representation.
+  </p>
+
+  <div class="grid grid-3">
+    <figure>
+      <img src="assets/imgs/drink_novel_01.png">
+      <figcaption>Novel view 1.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/imgs/drink_novel_02.png">
+      <figcaption>Novel view 2.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/imgs/drink_spherical_frame.png">
+      <figcaption>Frame from spherical rendering.</figcaption>
+    </figure>
+  </div>
+
+  <p class="muted">
+    The final video (drink_spherical.mp4) shows a smooth orbit around the cup, including consistent
+    occlusion, shadows, and geometry. The network successfully reconstructs my custom scene.
+  </p>
+
+  <div class="hr"></div>
+</section>
+
     
   </main>
 </body>

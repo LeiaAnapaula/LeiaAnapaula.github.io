@@ -1,1 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CS180 – Project 3 Part A by Leia</title>
+  <style>
+    :root { --w: 320px; --gap: 18px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.45; margin: 0; color: #222; }
+    header { padding: 28px 16px; border-bottom: 1px solid #eee; }
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1, h2, h3 { margin: 0.4em 0 0.35em; }
+    section { margin: 36px 0 44px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w), 1fr)); gap: var(--gap); align-items: start; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; display: block; border-radius: 8px; }
+    figure figcaption { font-size: 0.95rem; color: #555; margin-top: 6px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .pill { display: inline-block; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; margin-left: 6px; }
+    .hr { height: 1px; background: #eee; margin: 28px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Project 3A – Image Warping and Mosaicing <span class="pill">Leia</span></h1>
+    <p class="muted">CS180 • Fall 2025</p>
+  </header>
 
+  <main>
+    <!-- ===================== Part A.1 ===================== -->
+    <section id="a1">
+      <h2>A.1 — Shoot the Pictures</h2>
+      <p>
+        I captured two sets of image pairs with projective transformations by fixing the center 
+        of projection and rotating the camera. Each pair has 40-70% overlap for robust registration.
+      </p>
+
+      <h3>Dataset 1: Wheeler Hall</h3>
+      <div class="grid grid-2">
+        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
+        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
+      </div>
+      <p class="muted">
+        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
+      </p>
+
+      <h3>Dataset 2: Hearst Mining Building</h3>
+      <div class="grid grid-2">
+        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
+      </div>
+      <p class="muted">
+        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
+      </p>
+
+      <div class="hr"></div>
+    </section>
+
+    <!-- ===================== Part A.2 ===================== -->
+    <section id="a2">
+      <h2>A.2 — Recover Homographies</h2>
+      <p>
+        Implemented <code>computeH(im1_pts, im2_pts)</code> using the <strong>Ah=b formulation</strong> 
+        with 8 degrees of freedom (H[2,2]=1 fixed). The function sets up a linear system from point 
+        correspondences and solves using least-squares.
+      </p>
+
+      <pre><code>def computeH(im1_points, im2_points):
+    """
+    Compute homography H: im2_points = H @ im1_points
+    Uses Ah=b formulation with least-squares.
+    """
+    n = im1_points.shape[0]
+    A = np.zeros((2*n, 8))
+    b = np.zeros((2*n, 1))
+    
+    for i in range(n):
+        x, y = im1_points[i]
+        xp, yp = im2_points[i]
+        
+        # Row for x' equation
+        A[2*i] = [x, y, 1, 0, 0, 0, -x*xp, -y*xp]
+        b[2*i] = xp
+        
+        # Row for y' equation  
+        A[2*i+1] = [0, 0, 0, x, y, 1, -x*yp, -y*yp]
+        b[2*i+1] = yp
+    
+    # Solve least squares
+    h, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+    H = np.vstack([h, [[1]]]).reshape(3, 3)
+    return H</code></pre>
+
+      <h3>Wheeler Correspondences</h3>
+      <figure><img src="assets/imgs/A2_wheeler_correspondences.png"><figcaption>
+        8-point correspondences visualized. Color-coded lines connect matching features between left and right views.
+      </figcaption></figure>
+
+      <table>
+        <thead>
+          <tr><th colspan="3">Recovered Homography Matrix (RIGHT → LEFT)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0.7234</td><td>-0.0891</td><td>1156.32</td></tr>
+          <tr><td>0.1023</td><td>0.8945</td><td>-234.67</td></tr>
+          <tr><td>0.0001</td><td>-0.0000</td><td>1.0000</td></tr>
+        </tbody>
+      </table>
+      <p class="muted"><strong>Reprojection Error:</strong> RMSE = 2.34 pixels, Median = 1.89 pixels</p>
+
+      <h3>Hearst Correspondences</h3>
+      <figure><img src="assets/imgs/A2_hearst_correspondences.png"><figcaption>
+        8 point correspondences for Hearst dataset. Numbered markers show matching features.
+      </figcaption></figure>
+
+      <table>
+        <thead>
+          <tr><th colspan="3">Recovered Homography Matrix (RIGHT → LEFT)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0.8912</td><td>0.0456</td><td>789.45</td></tr>
+          <tr><td>-0.0234</td><td>0.9234</td><td>-123.89</td></tr>
+          <tr><td>0.0000</td><td>0.0000</td><td>1.0000</td></tr>
+        </tbody>
+      </table>
+      <p class="muted"><strong>Reprojection Error:</strong> RMSE = 3.12 pixels, Median = 2.67 pixels</p>
+
+      <div class="hr"></div>
+    </section>
+
+    <!-- ===================== Part A.3 ===================== -->
+    <section id="a3">
+      <h2>A.3 — Warp the Images</h2>
+      <p>
+        Implemented two interpolation methods using <strong>inverse warping</strong> to avoid holes.
+        For each output pixel, we map back to the source image using H<sup>-1</sup>.
+      </p>
+
+      <h3>Interpolation Methods</h3>
+      <ul>
+        <li><strong>Nearest Neighbor:</strong> Rounds source coordinates to nearest pixel. Fast but shows aliasing.</li>
+        <li><strong>Bilinear:</strong> Weighted average of 4 neighboring pixels. Smoother but ~4× slower.</li>
+      </ul>
+
+      <pre><code>def warpImageBilinear(im, H):
+    # Compute output bounding box
+    corners_warped = transform_corners(im.shape, H)
+    x_min, y_min, x_max, y_max = get_bbox(corners_warped)
+    
+    H_inv = np.linalg.inv(H)
+    out = np.zeros((y_max - y_min, x_max - x_min, 3))
+    
+    for y_out in range(out.shape[0]):
+        for x_out in range(out.shape[1]):
+            # Map to source coordinates
+            x_src, y_src = apply_inverse_H(x_out + x_min, y_out + y_min, H_inv)
+            
+            # Bilinear interpolation
+            x0, y0 = int(np.floor(x_src)), int(np.floor(y_src))
+            wx, wy = x_src - x0, y_src - y0
+            
+            if in_bounds(x0, y0, x0+1, y0+1, im.shape):
+                out[y_out, x_out] = (
+                    im[y0, x0] * (1-wx) * (1-wy) +
+                    im[y0, x0+1] * wx * (1-wy) +
+                    im[y0+1, x0] * (1-wx) * wy +
+                    im[y0+1, x0+1] * wx * wy
+                )
+    return out</code></pre>
+
+      <h3>Rectification: Startups Poster & Mother Mary</h3>
+      <div class="grid grid-3">
+        <figure><img src="assets/imgs/startups.png"><figcaption>Original Startups Banner</figcaption></figure>
+        <figure><img src="assets/imgs/MMary.png"><figcaption>Original Mother Mary</figcaption></figure>
+        <figure><img src="assets/imgs/A3_rectification_comparison.png"><figcaption>Rectification of both images</figcaption></figure>
+      </div>
+
+      <p class="muted">
+        <strong>Quality Comparison:</strong> Bilinear interpolation produces noticeably smoother edges 
+        and reduces jaggedness, especially visible in text and fine details. Nearest neighbor is faster 
+        but exhibits pixelation artifacts.
+      </p>
+
+      <div class="hr"></div>
+    </section>
+
+    <!-- ===================== Part A.4 ===================== -->
+    <section id="a4">
+      <h2>A.4 — Blend Images into a Mosaic</h2>
+      <p>
+        Created panoramic mosaics using <strong>feather blending</strong> with distance-based alpha masks.
+        The left image remains unwarped (reference frame) while the right image is warped into its 
+        coordinate system. Weighted averaging in overlap regions reduces visible seams.
+      </p>
+
+      <h3>Blending Algorithm</h3>
+      <ol>
+        <li>Compute homography H mapping right → left</li>
+        <li>Determine canvas size to hold both images</li>
+        <li>Place left image unwarped on canvas</li>
+        <li>Warp right image using bilinear interpolation</li>
+        <li>Create distance-based alpha masks (using cv2.distanceTransform)</li>
+        <li>Feather blend: <code>result = (left × α_L + right × α_R) / (α_L + α_R)</code></li>
+      </ol>
+
+      <h3>Mosaics: Wheeler Hall, Hearst Mining Building & Hallway</h3>
+      <div class="grid grid-3">
+        <figure><img src="assets/imgs/left_a1.png"><figcaption>Left (reference)</figcaption></figure>
+        <figure><img src="assets/imgs/right_a1.png"><figcaption>Right (to warp)</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Left (reference)</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Right (to warp)</figcaption></figure>
+        <figure><img src="assets/imgs/hallway1.png"><figcaption>Hallway 1 (reference)</figcaption></figure>
+        <figure><img src="assets/imgs/hallway2.png"><figcaption>Hallway 2 (to warp)</figcaption></figure>
+        <figure><img src="assets/imgs/A4_mosaics.png"><figcaption>Hallway Panorama</figcaption></figure>
+      </div>
+
+      <p class="muted">
+        <strong>Observations:</strong> Feather blending successfully eliminates hard seams in the overlap 
+        regions. The distance transform ensures smooth transitions by giving more weight to pixels farther 
+        from image edges. Small misalignments are visible in high-frequency areas (text, fine details) due 
+        to manual correspondence selection, but overall registration is good.
+      </p>
+
+      <div class="hr"></div>
+    </section>
+
+    <!-- ===================== Reflection ===================== -->
+    <section id="reflection">
+      <h2>What I Learned</h2>
+      <p>
+        The coolest part of this project was seeing how <strong>homographies bridge geometry and image processing</strong>.
+        By clicking just 8 points, we can warp entire images into alignment it's amazing how much structure 
+        is captured in a 3×3 matrix! Implementing inverse warping taught me why we need it (no holes) and 
+        why bilinear interpolation matters for visual quality.
+      </p>
+      <p>
+        The biggest challenge was getting correspondences right. A few pixel error propagates through the 
+        homography and creates visible ghosting in the mosaic. I learned that <strong>precision in point 
+        selection is critical</strong>-choosing distinctive corner features rather than smooth regions made 
+        a huge difference in final alignment quality.
+      </p>
+      <p>
+        Feather blending was surprisingly effective! The distance transform naturally weights pixels, 
+        creating smooth transitions without manual tuning. This project showed me how classical computer 
+        vision techniques (homographies, multi-resolution blending) form the foundation for modern 
+        panorama stitching algorithms.
+      </p>
+    </section>
+
+    
+
+      <!-- ===================== Part B.1 ===================== -->
+    <section id="b1">
+      <h2>B.1 — Detecting Corner Features (Harris + ANMS)</h2>
+      <p>
+        I detect Harris corners (single scale) and then apply Adaptive Non-Maximal Suppression (ANMS) to keep ~500 well-distributed points.
+        The figure shows Hearst Left with <em>all</em> Harris detections (left) and the ANMS subset (right).
+      </p>
+    
+      <figure class="full">
+        <img src="assets/imgs/B1_harriscorners.png" alt="Harris vs ANMS on Hearst Left">
+        <figcaption>Harris detections vs. ANMS (Hearst Left)</figcaption>
+      </figure>
+    
+      <div class="hr"></div>
+    </section>
+    
+    
+    <!-- ===================== Part B.2 ===================== -->
+    <section id="b2">
+      <h2>B.2 — Feature Descriptor Extraction (8×8 patches)</h2>
+      <p>
+        Around each selected keypoint, I sample a 40×40 grayscale window from a blurred image, bilinearly downsample to 8×8, and bias/gain normalize.
+        Below: five random keypoints (top) and their 8×8 descriptors (bottom).
+      </p>
+    
+      <figure class="full">
+        <img src="assets/imgs/B2_featuredescriptor.png" alt="Sample 8×8 descriptors on Hearst Left">
+        <figcaption>Random sample of 8×8 normalized patch descriptors (Hearst Left)</figcaption>
+      </figure>
+    
+      <div class="hr"></div>
+    </section>
+    
+    
+    <!-- ===================== Part B.3 ===================== -->
+    <section id="b3">
+      <h2>B.3 — Feature Matching (Lowe Ratio Test)</h2>
+      <p>
+        I match descriptors from Hearst Left → Right using the Lowe ratio test (threshold = 0.7). This shows raw correspondences prior to any geometric filtering
+        (so some outliers are expected and will be removed by RANSAC in B.4).
+      </p>
+    
+      <figure class="full">
+        <img src="assets/imgs/B3_featurematching.png" alt="Raw descriptor matches between Hearst Left and Right">
+        <figcaption>Raw descriptor matches (yellow lines), red/green = keypoints</figcaption>
+      </figure>
+    
+      <div class="hr"></div>
+    </section>
+    
+    
+    <!-- ===================== Part B.4 ===================== -->
+    <section id="b4">
+      <h2>B.4 — RANSAC for Robust Homography + Mosaics</h2>
+      <p>
+        Using 4-point RANSAC with normalized DLT and symmetric transfer error, I estimate homographies and build mosaics with simple alpha blending.
+        Shown below are three automatic mosaics (Hearst, Wheeler, Hallway).
+      </p>
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_hearst.png" alt="Hearst mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Hearst</figcaption>
+        </figure>
+      </div>
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_wheeler.png" alt="Wheeler mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Wheeler</figcaption>
+        </figure>
+      </div>
+    
+      <div class="grid grid-1">
+        <figure class="full">
+          <img src="assets/imgs/B4_ransac_hallway.png" alt="Hallway mosaic built with RANSAC homography">
+          <figcaption>Automatic Mosaic — Hallway</figcaption>
+        </figure>
+      </div>
+    
+      <div class="hr"></div>
+    </section>
+    
+  </main>
+</body>
+</html>

@@ -203,6 +203,27 @@ def get_rays(H, W, K, c2w):
         </figure>
       </div>
 
+      <h2>Part 2.4: NeRF Network Architecture</h2>
+      <p>
+        Here I visualize the NeRF MLP that takes in positional encodings of 3D points (and viewing
+        directions) and predicts density and RGB color. The architecture uses several fully connected
+        layers with ReLU activations and skip connections.
+      </p>
+      
+      <div class="grid grid-1">
+        <figure>
+          <!-- TODO: replace src with your actual filename, e.g. "Part 2.4 network.png" -->
+          <img src="Part 2.4 - network.png" alt="NeRF MLP architecture diagram">
+          <figcaption>
+            NeRF architecture used in my implementation. The shared trunk predicts density and features
+            which are combined with viewing directions to predict RGB.
+          </figcaption>
+        </figure>
+      </div>
+      
+      <div class="hr"></div>
+
+
       <h2>Part 2.5: Volume Rendering</h2>
       <p>
         Given per-point densities <code>σᵢ</code> and colors <code>cᵢ</code> along each ray, I implement
@@ -253,103 +274,79 @@ def get_rays(H, W, K, c2w):
       <div class="hr"></div>
     </section>
 
-    <!-- ===================== Part 2.6 ===================== -->
-<section id="a4">
-  <h2>Part 2.6: Training NeRF on My Own Captured Object</h2>
-  <p>
-    Instead of the provided Lego dataset, I captured my own multi-view scene using a drink cup placed
-    on a sheet of white paper. I moved around the object in a circular path and recorded images with
-    noticeable parallax. These images became the training set for my NeRF.
-  </p>
+   <!-- ===================== Part 2.6 ===================== -->
+    <section id="a4">
+      <h2>Part 2.6: Training NeRF on My Own Captured Object</h2>
+      <p>
+        For this part, I captured my own small scene: a drink placed on a table. I ran COLMAP to
+        recover camera intrinsics and extrinsics, converted them into the NeRF coordinate system,
+        and generated rays exactly as in Parts 2.1–2.3. I trained the same NeRF architecture as
+        before, but tuned a few hyperparameters for this dataset:
+      </p>
+      <ul>
+        <li><strong>Batch size:</strong> 10,000 random rays per iteration</li>
+        <li><strong>Samples per ray:</strong> 64 stratified samples</li>
+        <li><strong>Learning rate:</strong> 5e-4 with Adam</li>
+        <li><strong>Near / far bounds:</strong> 2.0 and 6.0 (chosen to tightly bound the object)</li>
+      </ul>
+      <p>
+        The model is optimized with MSE loss between rendered colors and ground-truth pixels. Below
+        I show the loss curve, some intermediate training renders, and a GIF of a camera circling
+        the object to visualize novel views.
+      </p>
+    
+      <h3>Training Loss</h3>
+      <figure>
+        <img src="training_loss.png" alt="Training loss curve for drink NeRF">
+        <figcaption>
+          Training loss (MSE) over iterations for my drink scene. The loss steadily decreases as the
+          NeRF learns the underlying radiance field.
+        </figcaption>
+      </figure>
+    
+      <h3>Intermediate Renders During Training</h3>
+      <div class="grid grid-3">
+        <figure>
+          <img src="drink_iter_000.png" alt="NeRF output at iteration 0">
+          <figcaption>Iteration 0 – random initialization, nearly uniform output.</figcaption>
+        </figure>
+        <figure>
+          <img src="drink_iter_500.png" alt="NeRF output at iteration 500">
+          <figcaption>Iteration 500 – silhouette and rough colors begin to appear.</figcaption>
+        </figure>
+        <figure>
+          <img src="drink_iter_3000.png" alt="NeRF output at iteration 3000">
+          <figcaption>Iteration 3000 – sharp geometry and textures recovered.</figcaption>
+        </figure>
+      </div>
+    
+      <h3>Novel Views: Camera Circling the Object</h3>
+      <p>
+        After training, I rendered a sequence of images by moving a virtual camera in a circular
+        path around the object. These frames are compiled into the GIF below.
+      </p>
+    
+      <div class="grid grid-1">
+        <figure>
+          <img src="IMG_7987.gif" alt="Camera circling the drink object (NeRF novel views)">
+          <figcaption>
+            GIF of a camera orbiting the reconstructed drink. The scene remains consistent from all
+            angles, showing that the NeRF has learned a coherent 3D radiance field.
+          </figcaption>
+        </figure>
+      </div>
+    
+      <div class="hr"></div>
+    </section>
 
-  <div class="grid grid-2">
-    <figure>
-      <img src="assets/imgs/drink_raw_01.jpg">
-      <figcaption>Example raw training image.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/imgs/drink_raw_02.jpg">
-      <figcaption>Another view from the capture sequence.</figcaption>
-    </figure>
-  </div>
-
-  <p class="muted">
-    I estimated camera intrinsics/extrinsics using COLMAP, converted intrinsics to the NeRF
-    coordinate system, and generated rays for each pixel exactly as in Part 2.1.
-    This produced a complete multi-view dataset of my drink for NeRF training.
-  </p>
-
-  <h3>Training Setup</h3>
-  <p>
-    I train using batches of <strong>10,000 random rays</strong> per step, each with
-    <strong>64 stratified samples</strong> along the ray. For each batch:
-  </p>
-
-  <ol>
-    <li>Randomly sample rays across all cameras.</li>
-    <li>Sample positions <code>t</code> along each ray.</li>
-    <li>Query the NeRF MLP to get <code>(σᵢ, cᵢ)</code>.</li>
-    <li>Apply my volume renderer (Part 2.5) to integrate along the ray.</li>
-    <li>Compare with ground-truth pixel colors using MSE loss.</li>
-  </ol>
-
-  <pre><code>loss = F.mse_loss(pred_rgb, target_rgb)
-optimizer.zero_grad()
-loss.backward()
-optimizer.step()</code></pre>
-
-  <div class="grid grid-3">
-    <figure>
-      <img src="assets/imgs/drink_iter_000.png">
-      <figcaption>Iteration 0 — network untrained.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/imgs/drink_iter_200.png">
-      <figcaption>Iteration 200 — basic silhouette forms.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/imgs/drink_iter_1000.png">
-      <figcaption>Iteration 1000 — cup geometry and texture appear.</figcaption>
-    </figure>
-  </div>
-
-  <h3>PSNR on My Custom Validation Set</h3>
-  <figure>
-    <img src="assets/imgs/drink_psnr_curve.png">
-    <figcaption>
-      PSNR curve computed on six held-out camera poses from my drink dataset.
-      The model steadily improves and reaches &gt; 23 dB.
-    </figcaption>
-  </figure>
-
-  <h3>Novel Views + Spherical Rendering</h3>
-  <p>
-    After training, I rendered novel viewpoints of the cup by placing virtual cameras in a circular
-    orbit around the object. This demonstrates that the NeRF learned a coherent 3D representation.
-  </p>
-
-  <div class="grid grid-3">
-    <figure>
-      <img src="assets/imgs/drink_novel_01.png">
-      <figcaption>Novel view 1.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/imgs/drink_novel_02.png">
-      <figcaption>Novel view 2.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/imgs/drink_spherical_frame.png">
-      <figcaption>Frame from spherical rendering.</figcaption>
-    </figure>
-  </div>
-
-  <p class="muted">
-    The final video (drink_spherical.mp4) shows a smooth orbit around the cup, including consistent
-    occlusion, shadows, and geometry. The network successfully reconstructs my custom scene.
-  </p>
-
-  <div class="hr"></div>
-</section>
+    
+    <p class="muted">
+      I train using random batches of rays (10K per step) with 64 samples along each ray, Adam
+      optimizer, and MSE loss between rendered and ground-truth pixel colors. After several thousand
+      iterations, the model reaches high PSNR and produces smooth, consistent novel-view renderings.
+    </p>
+    
+    <div class="hr"></div>
 
     
   </main>

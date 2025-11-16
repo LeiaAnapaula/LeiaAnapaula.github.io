@@ -30,6 +30,11 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
     <li><a href="Proj3/index.html">Project 3</a></li>
   </ul>
 
+- **Pro43/index.html** — Subpage for Project 4 about Neural Radiance Fields.
+  <ul>
+    <li><a href="Proj4/index.html">Project 4</a></li>
+  </ul>
+
 ## How to Navigate
 
 - Open [index.html](https://LeiaAnapaula.github.io) in your browser to view the main portfolio page.  

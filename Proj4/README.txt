@@ -1,5 +1,5 @@
 CS180 – Project 4: Neural Radiance Fields (NeRF)
-Author: Leia Chavarría Dávila
+Author: Leia Chavarria-Davila
 Semester: Fall 2025
 
 ---------------------------------------------

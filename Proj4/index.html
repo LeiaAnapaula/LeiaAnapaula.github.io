@@ -42,14 +42,17 @@
         of projection and rotating the camera. Each pair has 40-70% overlap for robust registration.
       </p>
 
-      <h3>Part 0.2: Capturing a 3D Object Scan</h3>
+      <h3>Part 0.2: Capturing a 3D Object Scan (Lafufu)</h3>
       <div class="grid grid-2">
-        <figure><img src="assets/imgs/left_a1.png"><figcaption>Wheeler Left</figcaption></figure>
-        <figure><img src="assets/imgs/right_a1.png"><figcaption>Wheeler Right</figcaption></figure>
+        <figure>
+          <img src="Part 0.2 - Lafufu Calibration.png" alt="Lafufu checkerboard calibration">
+          <figcaption>Lafufu – checkerboard calibration view.</figcaption>
+        </figure>
+        <figure>
+          <img src="Part 0.2 - Lafufu Poses.png" alt="Lafufu camera poses visualization">
+          <figcaption>Lafufu – recovered camera poses for the calibration sequence.</figcaption>
+        </figure>
       </div>
-      <p class="muted">
-        Fixed COP, handheld rotation (~55% overlap). Wheeler Hall exterior with architectural details.
-      </p>
 
       <h3>Part 0.3: Estimating Camera Pose</h3>
       <div class="grid grid-2">
@@ -73,76 +76,21 @@
     </section>
 
     <!-- ===================== Part 1 ===================== -->
-    <section id="a2">
-      <h2>Fit a Neural Field to a 2D Image</h2>
-      <p>
-        Implemented <code>computeH(im1_pts, im2_pts)</code> using the <strong>Ah=b formulation</strong> 
-        with 8 degrees of freedom (H[2,2]=1 fixed). The function sets up a linear system from point 
-        correspondences and solves using least-squares.
-      </p>
-
-      <pre><code>def computeH(im1_points, im2_points):
-    """
-    Compute homography H: im2_points = H @ im1_points
-    Uses Ah=b formulation with least-squares.
-    """
-    n = im1_points.shape[0]
-    A = np.zeros((2*n, 8))
-    b = np.zeros((2*n, 1))
+    <h2>Part 1: Fitting a Neural Field to a 2D Image</h2>
+    <p>
+      I fit an MLP to a single 2D image of a fox by treating each pixel coordinate as input
+      and predicting its RGB value.
+    </p>
     
-    for i in range(n):
-        x, y = im1_points[i]
-        xp, yp = im2_points[i]
-        
-        # Row for x' equation
-        A[2*i] = [x, y, 1, 0, 0, 0, -x*xp, -y*xp]
-        b[2*i] = xp
-        
-        # Row for y' equation  
-        A[2*i+1] = [0, 0, 0, x, y, 1, -x*yp, -y*yp]
-        b[2*i+1] = yp
-    
-    # Solve least squares
-    h, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
-    H = np.vstack([h, [[1]]]).reshape(3, 3)
-    return H</code></pre>
-
-      <h3>Wheeler Correspondences</h3>
-      <figure><img src="assets/imgs/A2_wheeler_correspondences.png"><figcaption>
-        8-point correspondences visualized. Color-coded lines connect matching features between left and right views.
-      </figcaption></figure>
-
-      <table>
-        <thead>
-          <tr><th colspan="3">Recovered Homography Matrix (RIGHT → LEFT)</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>0.7234</td><td>-0.0891</td><td>1156.32</td></tr>
-          <tr><td>0.1023</td><td>0.8945</td><td>-234.67</td></tr>
-          <tr><td>0.0001</td><td>-0.0000</td><td>1.0000</td></tr>
-        </tbody>
-      </table>
-      <p class="muted"><strong>Reprojection Error:</strong> RMSE = 2.34 pixels, Median = 1.89 pixels</p>
-
-      <h3>Hearst Correspondences</h3>
-      <figure><img src="assets/imgs/A2_hearst_correspondences.png"><figcaption>
-        8 point correspondences for Hearst dataset. Numbered markers show matching features.
-      </figcaption></figure>
-
-      <table>
-        <thead>
-          <tr><th colspan="3">Recovered Homography Matrix (RIGHT → LEFT)</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>0.8912</td><td>0.0456</td><td>789.45</td></tr>
-          <tr><td>-0.0234</td><td>0.9234</td><td>-123.89</td></tr>
-          <tr><td>0.0000</td><td>0.0000</td><td>1.0000</td></tr>
-        </tbody>
-      </table>
-      <p class="muted"><strong>Reprojection Error:</strong> RMSE = 3.12 pixels, Median = 2.67 pixels</p>
-
-      <div class="hr"></div>
-    </section>
+    <div class="grid grid-1">
+      <figure>
+        <img src="Part 1 fox pixels.png" alt="Fox image reconstructed from neural field">
+        <figcaption>
+          Neural field fit to the fox image. The network learns a continuous mapping from
+          (x, y) pixel coordinates to RGB colors.
+        </figcaption>
+      </figure>
+    </div>
 
         <!-- ===================== Part 2 ===================== -->
     <section id="a3">
@@ -232,51 +180,28 @@ def get_rays(H, W, K, c2w):
 
       <div class="hr"></div>
 
-      <h2>Part 2.3: Neural Radiance Field Network</h2>
+      <h2>Part 2.3: Visualizing Cameras, Rays, and Samples</h2>
       <p>
-        I use a multi-layer perceptron that maps position (and viewing direction) to density and RGB.
-        Inputs are first passed through a <strong>positional encoding</strong> to allow the MLP to
-        represent high-frequency details.
+        Here I visualize the camera frustums, a subset of rays, and the sampled points used
+        to train the NeRF on the Lego scene.
       </p>
-
-      <pre><code>class NeRF(nn.Module):
-    def __init__(self, pos_dim=3, dir_dim=3, hidden_dim=256):
-        super().__init__()
-        in_pos = pos_dim * 2 * 10  # 10 frequency bands
-        in_dir = dir_dim * 2 * 4   # 4 frequency bands
-
-        self.mlp_pos = nn.Sequential(
-            nn.Linear(in_pos, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
-        )
-        self.sigma_head = nn.Linear(hidden_dim, 1)
-
-        self.mlp_rgb = nn.Sequential(
-            nn.Linear(hidden_dim + in_dir, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, 3), nn.Sigmoid()
-        )
-
-    def forward(self, pts_enc, dirs_enc):
-        h = self.mlp_pos(pts_enc)
-        sigma = F.relu(self.sigma_head(h))
-        h_rgb = torch.cat([h, dirs_enc], dim=-1)
-        rgb = self.mlp_rgb(h_rgb)
-        return sigma, rgb</code></pre>
-
-      <div class="grid grid-2">
+      
+      <div class="grid grid-3">
         <figure>
-          <img src="assets/imgs/network_diagram.png" alt="Network diagram">
-          <figcaption>Diagram of the NeRF MLP: positional encoding → shared trunk → σ and RGB heads.</figcaption>
+          <img src="Part 2.3 deliverable.png" alt="Camera frustums and rays visualization">
+          <figcaption>Camera frustums and a subset of rays in the Lego scene.</figcaption>
         </figure>
+      
         <figure>
-          <img src="assets/imgs/pe_vs_nope.png" alt="Effect of positional encoding">
-          <figcaption>Without positional encoding the network blurs details; with it, high-frequency
-          geometry and textures are preserved.</figcaption>
+          <img src="part 2.3 deliverable 2.png" alt="Ray samples close-up view">
+          <figcaption>Close-up of sampled points along rays.</figcaption>
+        </figure>
+      
+        <figure>
+          <img src="part 2.3 deliverable 3.png" alt="Alternative view of rays and samples">
+          <figcaption>Alternative viewpoint of cameras and ray geometry.</figcaption>
         </figure>
       </div>
-
-      <div class="hr"></div>
 
       <h2>Part 2.5: Volume Rendering</h2>
       <p>

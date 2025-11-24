@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proj 5 — Part A</title>
+
+    <style>
+        :root {
+            --berkeley-blue: #003262;
+            --founders-rock: #C4820E;
+            --medalist: #D9661F;
+            --light-gray: #EEEEEE;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0 40px 80px 40px;
+            background-color: var(--light-gray);
+        }
+
+        h1, h2, h3 {
+            font-weight: 600;
+            color: var(--berkeley-blue);
+        }
+
+        nav {
+            background: var(--berkeley-blue);
+            padding: 15px;
+            color: white;
+            position: sticky;
+            top: 0;
+            border-bottom: 4px solid var(--founders-rock);
+        }
+
+        nav a {
+            color: var(--founders-rock);
+            margin-right: 15px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        nav a:hover {
+            color: var(--medalist);
+        }
+
+        section {
+            margin-top: 55px;
+        }
+
+        img {
+            max-width: 100%;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+
+        .sub {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav>
+    <a href="#top">Proj5</a>
+    <a href="#p0">Part 0</a>
+    <a href="#p1">Part 1</a>
+    <a href="#p1-1">1.1</a>
+    <a href="#p1-2">1.2</a>
+    <a href="#p1-3">1.3</a>
+    <a href="#p1-4">1.4</a>
+    <a href="#p1-5">1.5</a>
+    <a href="#p1-6">1.6</a>
+    <a href="#p1-7">1.7</a>
+    <a href="#p1-8">1.8</a>
+    <a href="#p1-9">1.9</a>
+</nav>
+<h1 id="top">CS180 Project 5 — Part A</h1>
+<h2>Diffusion Models & Image Generation</h2>
+
+<section id="p0">
+    <h2>Part 0 — Setup</h2>
+    <p>Include HuggingFace login steps, prompt embeddings, and sample generated images here.</p>
+    <img src="images/part0_sample.png" alt="Part 0 sample">
+</section>
+
+<section id="p1">
+    <h2>Part 1 — Sampling and Denoising</h2>
+</section>
+
+<section id="p1-1" class="sub">
+    <h3>Part 1.1 — Forward Process</h3>
+    <p>Show original image → noise at t=250, 500, 750.</p>
+    <img src="images/p11_t250.png">
+    <img src="images/p11_t500.png">
+    <img src="images/p11_t750.png">
+</section>
+
+<section id="p1-2" class="sub">
+    <h3>Part 1.2 — Classical Denoising</h3>
+    <p>Gaussian blur results for each timestep.</p>
+    <img src="images/p12_results.png">
+</section>
+
+<section id="p1-3" class="sub">
+    <h3>Part 1.3 — One-Step Denoising</h3>
+    <p>UNet predicted x₀ for t=[250,500,750].</p>
+    <img src="images/p13_results.png">
+</section>
+
+<section id="p1-4" class="sub">
+    <h3>Part 1.4 — Iterative Denoising</h3>
+    <p>Show denoising progression and final result.</p>
+    <img src="images/p14_progress.png">
+    <img src="images/p14_final.png">
+</section>
+
+<section id="p1-5" class="sub">
+    <h3>Part 1.5 — Sampling from Noise</h3>
+    <p>5 generated samples using iterative sampling (no CFG).</p>
+    <img src="images/p15_samples.png">
+</section>
+
+<section id="p1-6" class="sub">
+    <h3>Part 1.6 — Classifier-Free Guidance</h3>
+    <p>5 CFG samples at scale 7.</p>
+    <img src="images/p16_cfg.png">
+</section>
+
+<section id="p1-7" class="sub">
+    <h3>Part 1.7 — Image-to-Image & Inpainting</h3>
+
+    <h4>1.7.1 Image-to-Image</h4>
+    <img src="images/p171_all.png">
+
+    <h4>1.7.2 Inpainting</h4>
+    <img src="images/p172_inpaint.png">
+
+    <h4>1.7.3 Text-Conditional Edit</h4>
+    <img src="images/p173_text2img.png">
+</section>
+
+<section id="p1-8" class="sub">
+    <h3>Part 1.8 — Visual Anagrams</h3>
+    <p>Two illusions that flip.</p>
+    <img src="images/p18_anagram1.png">
+    <img src="images/p18_anagram2.png">
+</section>
+
+<section id="p1-9" class="sub">
+    <h3>Part 1.9 — Hybrid Images</h3>
+    <p>Two hybrid images using high-pass + low-pass guidance.</p>
+    <img src="images/p19_hybrid1.png">
+    <img src="images/p19_hybrid2.png">
+</section>
+
+</body>
+</html>

@@ -30,9 +30,14 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
     <li><a href="Proj3/index.html">Project 3</a></li>
   </ul>
 
-- **Pro43/index.html** — Subpage for Project 4 about Neural Radiance Fields.
+- **Proj4/index.html** — Subpage for Project 4 about Neural Radiance Fields.
   <ul>
     <li><a href="Proj4/index.html">Project 4</a></li>
+  </ul>
+
+- **Proj5/index.html** — Subpage for Project 5 about Diffusion Models.
+  <ul>
+    <li><a href="Proj5/index.html">Project 5</a></li>
   </ul>
 
 ## How to Navigate

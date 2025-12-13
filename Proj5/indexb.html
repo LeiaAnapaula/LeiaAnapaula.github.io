@@ -65,6 +65,11 @@
 
 <nav>
     <a href="#top">Proj5</a>
+    <a href="#p1">Part 1</a>
+    <a href="#p121">1.2.1</a>
+    <a href="#p122">1.2.2</a>
+    <a href="#p123">1.2.3</a>
+    <a href="#p2">Part 2</a>
     <a href="#p22">2.2</a>
     <a href="#p23">2.3</a>
     <a href="#p25">2.5</a>
@@ -72,14 +77,73 @@
 </nav>
 
 <h1 id="top">CS180 Project 5 — Part B</h1>
-<h2>Flow Matching & Conditional Generation</h2>
+<h2>Flow Matching from Scratch</h2>
+
+<!-- ===================== PART 1 ===================== -->
+<section id="p1">
+    <h2>Part 1 — Single-step Denoising UNet</h2>
+    <p class="sub">
+        In Part 1, we train a UNet denoiser on MNIST with Gaussian noise and evaluate it under different noise levels.
+    </p>
+</section>
+
+<!-- ===================== 1.2.1 ===================== -->
+<section id="p121">
+    <h2>1.2.1 — Training a Denoiser (σ = 0.5)</h2>
+    <p class="sub">
+        Train a UNet denoiser on MNIST with noise level σ = 0.5. Below are the training loss curve and sample denoising results.
+    </p>
+
+    <h3>Training Loss Curve</h3>
+    <img src="results/1_2_noise_levels/loss_curve.png" alt="1.2.1 training loss curve">
+
+    <h3>Sample Results (Epoch 1)</h3>
+    <img src="results/1_2_noise_levels/epoch_1.png" alt="1.2.1 epoch 1 results">
+
+    <h3>Sample Results (Epoch 5)</h3>
+    <img src="results/1_2_noise_levels/epoch_5.png" alt="1.2.1 epoch 5 results">
+</section>
+
+<!-- ===================== 1.2.2 ===================== -->
+<section id="p122">
+    <h2>1.2.2 — Out-of-Distribution Testing</h2>
+    <p class="sub">
+        We test the denoiser (trained at σ = 0.5) on a fixed test image while varying σ ∈ [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0].
+    </p>
+
+    <img src="results/1_2_2_ood/ood_grid.png" alt="1.2.2 OOD denoising grid">
+</section>
+
+<!-- ===================== 1.2.3 ===================== -->
+<section id="p123">
+    <h2>1.2.3 — Denoising Pure Noise</h2>
+    <p class="sub">
+        We train a denoiser to map pure Gaussian noise z ~ N(0, I) into clean MNIST digits. Below are the training curve and samples after epoch 1 and 5.
+    </p>
+
+    <h3>Training Loss Curve</h3>
+    <img src="results/1_2_3_pure_noise/loss_curve.png" alt="1.2.3 training loss curve">
+
+    <h3>Samples (Epoch 1)</h3>
+    <img src="results/1_2_3_pure_noise/epoch_1.png" alt="1.2.3 epoch 1 samples">
+
+    <h3>Samples (Epoch 5)</h3>
+    <img src="results/1_2_3_pure_noise/epoch_5.png" alt="1.2.3 epoch 5 samples">
+</section>
+
+<!-- ===================== PART 2 ===================== -->
+<section id="p2">
+    <h2>Part 2 — Flow Matching Model</h2>
+    <p class="sub">
+        In Part 2, we train a time-conditioned UNet to predict the flow field for iterative denoising, then extend it to class conditioning with classifier-free guidance (CFG).
+    </p>
+</section>
 
 <!-- ===================== 2.2 ===================== -->
 <section id="p22">
     <h2>2.2 — Training the Time-Conditioned UNet</h2>
     <p class="sub">
-        We train a time-conditioned UNet using flow matching on MNIST.
-        Below is the training loss curve over the full training process.
+        Train a time-conditioned UNet using flow matching. Below is the training loss curve over the full training process.
     </p>
 
     <img src="results/2_2_time_fm/loss_curve.png" alt="2.2 training loss curve">
@@ -89,8 +153,7 @@
 <section id="p23">
     <h2>2.3 — Sampling from the Time-Conditioned UNet</h2>
     <p class="sub">
-        We sample from the trained time-conditioned UNet using iterative denoising.
-        Results are shown after 1, 5, and 10 epochs.
+        Samples produced via iterative denoising after 1, 5, and 10 epochs.
     </p>
 
     <h3>Epoch 1</h3>
@@ -107,8 +170,7 @@
 <section id="p25">
     <h2>2.5 — Training the Class-Conditioned UNet</h2>
     <p class="sub">
-        We extend flow matching to class conditioning using classifier-free guidance.
-        Below is the training loss curve for the class-conditioned UNet.
+        Train the class-conditioned UNet with classifier-free dropout (p_uncond = 0.1). Below is the training loss curve.
     </p>
 
     <img src="results/2_5_class_fm/loss_curve.png" alt="2.5 class-conditioned training loss">
@@ -116,10 +178,9 @@
 
 <!-- ===================== 2.6 ===================== -->
 <section id="p26">
-    <h2>2.6 — Class-Conditional Sampling with CFG</h2>
+    <h2>2.6 — Class-Conditional Sampling with CFG (γ = 5.0)</h2>
     <p class="sub">
-        We sample from the class-conditioned UNet using classifier-free guidance
-        with guidance scale γ = 5.0. Each row contains 4 samples per digit (0–9).
+        Generate 4 instances of each digit (0–9) using classifier-free guidance with γ = 5.0, shown after 1, 5, and 10 epochs.
     </p>
 
     <h3>Epoch 1</h3>

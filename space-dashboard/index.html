@@ -12,8 +12,23 @@
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Recharts -->
-    <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.min.js"></script>
+    <!-- Recharts: try CDN then fallback to local -->
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/recharts@2.5.0/umd/Recharts.min.js"></script>
+    <script>
+      // quick runtime check and friendly console message if blocked
+      (function () {
+        const tryUrl = (url) => fetch(url, { method: 'HEAD', mode: 'no-cors' })
+          .then(() => true)
+          .catch(() => false);
+    
+        // If Recharts global isn't present after a tick, print helpful guidance
+        setTimeout(() => {
+          if (!window.Recharts) {
+            console.warn('Recharts did not load from CDN. Try disabling extensions or serve a local copy (space-dashboard/vendor/Recharts.min.js).');
+          }
+        }, 500);
+      })();
+    </script>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

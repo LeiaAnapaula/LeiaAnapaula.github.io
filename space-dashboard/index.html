@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Missions Dashboard</title>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0a0e1a;
+            overflow-x: hidden;
+        }
+        
+        #root {
+            width: 100%;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+        // ============================================================================
+        // DATA PROCESSING & REQUIRED FUNCTIONS (PascalCase with 5 decimal precision)
+        // ============================================================================
+
+        const processCSVData = (csvText) => {
+          const lines = csvText.trim().split('\n');
+          const headers = lines[0].split(',');
+          
+          return lines.slice(1).map(line => {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let char of line) {
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            values.push(current.trim());
+            
+            const row = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            return row;
+          });
+        };
+
+        // Function 1: GetMissionCountByCompany
+        const GetMissionCountByCompany = (data, companyName) => {
+          return data.filter(mission => mission.Company === companyName).length;
+        };
+
+        // Function 2: GetSuccessRate (5 decimal precision)
+        const GetSuccessRate = (data, companyName) => {
+          const companyMissions = data.filter(mission => mission.Company === companyName);
+          if (companyMissions.length === 0) return 0.00000;
+          
+          const successfulMissions = companyMissions.filter(mission => mission.MissionStatus === 'Success').length;
+          return parseFloat(((successfulMissions / companyMissions.length) * 100).toFixed(5));
+        };
+
+        // Function 3: GetMissionsByDateRange
+        const GetMissionsByDateRange = (data, startDate, endDate) => {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          
+          return data
+            .filter(mission => {
+              const missionDate = new Date(mission.Date);
+              return missionDate >= start && missionDate <= end;
+            })
+            .sort((a, b) => new Date(a.Date) - new Date(b.Date))
+            .map(mission => mission.Mission);
+        };
+
+        // Function 4: GetTopCompaniesByMissionCount
+        const GetTopCompaniesByMissionCount = (data, n) => {
+          const companyCounts = {};
+          
+          data.forEach(mission => {
+            companyCounts[mission.Company] = (companyCounts[mission.Company] || 0) + 1;
+          });
+          
+          return Object.entries(companyCounts)
+            .sort((a, b) => {
+              if (b[1] !== a[1]) return b[1] - a[1];
+              return a[0].localeCompare(b[0]);
+            })
+            .slice(0, n)
+            .map(([company, count]) => [company, count]);
+        };
+
+        // Function 5: GetMissionStatusCount
+        const GetMissionStatusCount = (data) => {
+          const statusCount = {
+            "Success": 0,
+            "Failure": 0,
+            "Partial Failure": 0,
+            "Prelaunch Failure": 0
+          };
+          
+          data.forEach(mission => {
+            if (statusCount.hasOwnProperty(mission.MissionStatus)) {
+              statusCount[mission.MissionStatus]++;
+            }
+          });
+          
+          return statusCount;
+        };
+
+        // Function 6: GetMissionsByYear
+        const GetMissionsByYear = (data, year) => {
+          return data.filter(mission => {
+            const missionYear = new Date(mission.Date).getFullYear();
+            return missionYear === year;
+          }).length;
+        };
+
+        // Function 7: GetMostUsedRocket
+        const GetMostUsedRocket = (data) => {
+          const rocketCounts = {};
+          
+          data.forEach(mission => {
+            rocketCounts[mission.Rocket] = (rocketCounts[mission.Rocket] || 0) + 1;
+          });
+          
+          const sortedRockets = Object.entries(rocketCounts)
+            .sort((a, b) => {
+              if (b[1] !== a[1]) return b[1] - a[1];
+              return a[0].localeCompare(b[0]);
+            });
+          
+          return sortedRockets.length > 0 ? sortedRockets[0][0] : '';
+        };
+
+        // Function 8: GetAverageMissionsPerYear (5 decimal precision)
+        const GetAverageMissionsPerYear = (data, startYear, endYear) => {
+          const yearRange = endYear - startYear + 1;
+          const missionsInRange = data.filter(mission => {
+            const year = new Date(mission.Date).getFullYear();
+            return year >= startYear && year <= endYear;
+          }).length;
+          
+          return parseFloat((missionsInRange / yearRange).toFixed(5));
+        };
+
+        // ============================================================================
+        // MAIN DASHBOARD COMPONENT
+        // ============================================================================
+
+        const SpaceMissionsDashboard = () => {
+          const [data, setData] = useState([]);
+          const [filteredData, setFilteredData] = useState([]);
+          const [loading, setLoading] = useState(true);
+          
+          // Filter states
+          const [selectedCompany, setSelectedCompany] = useState('All');
+          const [selectedStatus, setSelectedStatus] = useState('All');
+          const [dateRange, setDateRange] = useState({ start: '', end: '' });
+          const [searchTerm, setSearchTerm] = useState('');
+          
+          // Pagination
+          const [currentPage, setCurrentPage] = useState(1);
+          const itemsPerPage = 20;
+
+          useEffect(() => {
+            // Load CSV data
+            fetch('space_missions__1_.csv')
+              .then(res => res.text())
+              .then(csvText => {
+                const processedData = processCSVData(csvText);
+                setData(processedData);
+                setFilteredData(processedData);
+                setLoading(false);
+              })
+              .catch(err => {
+                console.error('Error loading data:', err);
+                setLoading(false);
+              });
+          }, []);
+
+          // Apply filters
+          useEffect(() => {
+            let filtered = [...data];
+            
+            if (selectedCompany !== 'All') {
+              filtered = filtered.filter(m => m.Company === selectedCompany);
+            }
+            
+            if (selectedStatus !== 'All') {
+              filtered = filtered.filter(m => m.MissionStatus === selectedStatus);
+            }
+            
+            if (dateRange.start && dateRange.end) {
+              const missions = GetMissionsByDateRange(data, dateRange.start, dateRange.end);
+              filtered = filtered.filter(m => missions.includes(m.Mission));
+            }
+            
+            if (searchTerm) {
+              filtered = filtered.filter(m => 
+                m.Mission.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                m.Rocket.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                m.Location.toLowerCase().includes(searchTerm.toLowerCase())
+              );
+            }
+            
+            setFilteredData(filtered);
+            setCurrentPage(1);
+          }, [selectedCompany, selectedStatus, dateRange, searchTerm, data]);
+
+          // Computed statistics
+          const stats = useMemo(() => {
+            const totalMissions = filteredData.length;
+            const successCount = filteredData.filter(m => m.MissionStatus === 'Success').length;
+            const successRate = totalMissions > 0 ? ((successCount / totalMissions) * 100).toFixed(5) : '0.00000';
+            
+            const topCompanies = GetTopCompaniesByMissionCount(filteredData, 10);
+            const statusCounts = GetMissionStatusCount(filteredData);
+            
+            // Missions over time
+            const missionsByYear = {};
+            filteredData.forEach(m => {
+              const year = new Date(m.Date).getFullYear();
+              missionsByYear[year] = (missionsByYear[year] || 0) + 1;
+            });
+            
+            const timelineData = Object.entries(missionsByYear)
+              .sort((a, b) => a[0] - b[0])
+              .map(([year, count]) => ({ year: parseInt(year), missions: count }));
+            
+            return {
+              totalMissions,
+              successRate,
+              topCompanies,
+              statusCounts,
+              timelineData
+            };
+          }, [filteredData]);
+
+          const uniqueCompanies = useMemo(() => 
+            ['All', ...new Set(data.map(m => m.Company))].sort(), 
+            [data]
+          );
+          
+          const uniqueStatuses = useMemo(() => 
+            ['All', ...new Set(data.map(m => m.MissionStatus))].filter(Boolean), 
+            [data]
+          );
+
+          // Pagination
+          const paginatedData = filteredData.slice(
+            (currentPage - 1) * itemsPerPage,
+            currentPage * itemsPerPage
+          );
+          const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+          if (loading) {
+            return (
+              <div style={styles.loadingContainer}>
+                <div style={styles.spinner}></div>
+                <p style={styles.loadingText}>Loading space missions data...</p>
+              </div>
+            );
+          }
+
+          return (
+            <div style={styles.container}>
+              {/* Cosmic background effects */}
+              <div style={styles.starsBackground}></div>
+              <div style={styles.cosmicGradient}></div>
+              
+              {/* Header with logo */}
+              <header style={styles.header}>
+                <div style={styles.logoContainer}>
+                  <svg width="60" height="60" viewBox="0 0 60 60" style={styles.logo}>
+                    <circle cx="20" cy="30" r="15" fill="rgba(138, 43, 226, 0.6)" />
+                    <circle cx="30" cy="30" r="15" fill="rgba(75, 0, 130, 0.6)" />
+                    <circle cx="40" cy="30" r="15" fill="rgba(147, 112, 219, 0.6)" />
+                  </svg>
+                  <div>
+                    <h1 style={styles.title}>Space Missions Explorer</h1>
+                    <p style={styles.subtitle}>Historical Space Launch Data (1957 - Present)</p>
+                  </div>
+                </div>
+              </header>
+
+              <div style={styles.mainContent}>
+                {/* Sidebar */}
+                <aside style={styles.sidebar}>
+                  <h2 style={styles.sidebarTitle}>Filters</h2>
+                  
+                  <div style={styles.filterGroup}>
+                    <label style={styles.label}>Search Missions</label>
+                    <input
+                      type="text"
+                      placeholder="Mission, Rocket, or Location..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.filterGroup}>
+                    <label style={styles.label}>Company</label>
+                    <select
+                      value={selectedCompany}
+                      onChange={(e) => setSelectedCompany(e.target.value)}
+                      style={styles.select}
+                    >
+                      {uniqueCompanies.map(company => (
+                        <option key={company} value={company}>{company}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={styles.filterGroup}>
+                    <label style={styles.label}>Mission Status</label>
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      style={styles.select}
+                    >
+                      {uniqueStatuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={styles.filterGroup}>
+                    <label style={styles.label}>Date Range</label>
+                    <input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                      style={styles.dateInput}
+                    />
+                    <span style={styles.dateTo}>to</span>
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                      style={styles.dateInput}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedCompany('All');
+                      setSelectedStatus('All');
+                      setDateRange({ start: '', end: '' });
+                      setSearchTerm('');
+                    }}
+                    style={styles.resetButton}
+                  >
+                    Reset Filters
+                  </button>
+
+                  {/* Key Statistics */}
+                  <div style={styles.statsBox}>
+                    <h3 style={styles.statsTitle}>Key Statistics</h3>
+                    <div style={styles.statItem}>
+                      <span style={styles.statLabel}>Total Missions</span>
+                      <span style={styles.statValue}>{stats.totalMissions}</span>
+                    </div>
+                    <div style={styles.statItem}>
+                      <span style={styles.statLabel}>Success Rate</span>
+                      <span style={styles.statValue}>{stats.successRate}%</span>
+                    </div>
+                    <div style={styles.statItem}>
+                      <span style={styles.statLabel}>Most Used Rocket</span>
+                      <span style={styles.statValueSmall}>{GetMostUsedRocket(filteredData)}</span>
+                    </div>
+                  </div>
+                </aside>
+
+                {/* Main Content Area */}
+                <main style={styles.content}>
+                  {/* Highlight Cards */}
+                  <div style={styles.highlightGrid}>
+                    <div style={{...styles.highlightCard}} className="highlightCard">
+                      <div style={styles.cardIcon}>🚀</div>
+                      <h3 style={styles.cardValue}>{stats.totalMissions}</h3>
+                      <p style={styles.cardLabel}>Total Missions</p>
+                    </div>
+                    <div style={{...styles.highlightCard}} className="highlightCard">
+                      <div style={styles.cardIcon}>✓</div>
+                      <h3 style={styles.cardValue}>{stats.successRate}%</h3>
+                      <p style={styles.cardLabel}>Success Rate</p>
+                    </div>
+                    <div style={{...styles.highlightCard}} className="highlightCard">
+                      <div style={styles.cardIcon}>🏢</div>
+                      <h3 style={styles.cardValue}>{stats.topCompanies.length > 0 ? stats.topCompanies[0][0] : 'N/A'}</h3>
+                      <p style={styles.cardLabel}>Top Company</p>
+                    </div>
+                  </div>
+
+                  {/* Visualizations */}
+                  <div style={styles.visualizationsGrid}>
+                    {/* Chart 1: Missions Over Time */}
+                    <div style={styles.chartCard}>
+                      <h3 style={styles.chartTitle}>Missions by Year</h3>
+                      <p style={styles.chartDescription}>
+                        Temporal analysis showing launch frequency trends. Line charts reveal acceleration 
+                        patterns in space exploration, particularly during the Space Race era (1960s-1980s) 
+                        and modern commercial space age (2010s-present).
+                      </p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={stats.timelineData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis 
+                            dataKey="year" 
+                            stroke="#a8b2d1" 
+                            style={{ fontSize: '12px' }}
+                          />
+                          <YAxis stroke="#a8b2d1" style={{ fontSize: '12px' }} />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                              border: '1px solid rgba(138, 43, 226, 0.5)',
+                              borderRadius: '8px',
+                              color: '#e2e8f0'
+                            }} 
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="missions" 
+                            stroke="#8a2be2" 
+                            strokeWidth={3}
+                            dot={{ fill: '#8a2be2', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Chart 2: Top Companies */}
+                    <div style={styles.chartCard}>
+                      <h3 style={styles.chartTitle}>Top Companies by Mission Count</h3>
+                      <p style={styles.chartDescription}>
+                        Comparative analysis of major space organizations. Bar chart visualizes market 
+                        dominance and evolution from government agencies (USSR, NASA) to modern private 
+                        entities (SpaceX, Blue Origin).
+                      </p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={stats.topCompanies.slice(0, 8).map(([name, count]) => ({ name, count }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#a8b2d1" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={100}
+                            style={{ fontSize: '10px' }}
+                          />
+                          <YAxis stroke="#a8b2d1" style={{ fontSize: '12px' }} />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                              border: '1px solid rgba(138, 43, 226, 0.5)',
+                              borderRadius: '8px',
+                              color: '#e2e8f0'
+                            }} 
+                          />
+                          <Bar dataKey="count" fill="#8a2be2" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Chart 3: Mission Status Distribution */}
+                    <div style={styles.chartCard}>
+                      <h3 style={styles.chartTitle}>Mission Status Distribution</h3>
+                      <p style={styles.chartDescription}>
+                        Success rate breakdown across all missions. Pie chart provides proportional view 
+                        of outcomes, demonstrating the high-risk nature of space exploration and improvements 
+                        in reliability over time.
+                      </p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(stats.statusCounts).map(([name, value]) => ({ name, value }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={true}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {Object.entries(stats.statusCounts).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={['#10b981', '#ef4444', '#f59e0b', '#6366f1'][index]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                              border: '1px solid rgba(138, 43, 226, 0.5)',
+                              borderRadius: '8px',
+                              color: '#e2e8f0'
+                            }} 
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Data Table */}
+                  <div style={styles.tableCard}>
+                    <h3 style={styles.tableTitle}>Mission Data Explorer</h3>
+                    <div style={styles.tableContainer}>
+                      <table style={styles.table}>
+                        <thead>
+                          <tr style={styles.tableHeaderRow}>
+                            <th style={styles.th}>Date</th>
+                            <th style={styles.th}>Company</th>
+                            <th style={styles.th}>Mission</th>
+                            <th style={styles.th}>Rocket</th>
+                            <th style={styles.th}>Location</th>
+                            <th style={styles.th}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedData.map((mission, idx) => (
+                            <tr key={idx} style={styles.tableRow}>
+                              <td style={styles.td}>{mission.Date}</td>
+                              <td style={styles.td}>{mission.Company}</td>
+                              <td style={styles.td}>{mission.Mission}</td>
+                              <td style={styles.td}>{mission.Rocket}</td>
+                              <td style={styles.td}>{mission.Location}</td>
+                              <td style={styles.td}>
+                                <span style={{
+                                  ...styles.statusBadge,
+                                  ...(mission.MissionStatus === 'Success' ? styles.statusSuccess :
+                                      mission.MissionStatus === 'Failure' ? styles.statusFailure :
+                                      mission.MissionStatus === 'Partial Failure' ? styles.statusPartial :
+                                      styles.statusPrelaunch)
+                                }}>
+                                  {mission.MissionStatus}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Pagination */}
+                    <div style={styles.pagination}>
+                      <button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        style={{...styles.paginationButton, ...(currentPage === 1 ? styles.paginationButtonDisabled : {})}}
+                      >
+                        Previous
+                      </button>
+                      <span style={styles.paginationInfo}>
+                        Page {currentPage} of {totalPages} ({filteredData.length} missions)
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        style={{...styles.paginationButton, ...(currentPage === totalPages ? styles.paginationButtonDisabled : {})}}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </main>
+              </div>
+            </div>
+          );
+        };
+
+        // ============================================================================
+        // STYLES
+        // ============================================================================
+
+        const styles = {
+          container: {
+            minHeight: '100vh',
+            backgroundColor: '#0a0e1a',
+            color: '#e2e8f0',
+            fontFamily: '"Outfit", -apple-system, BlinkMacSystemFont, sans-serif',
+            position: 'relative',
+            overflow: 'hidden',
+          },
+          starsBackground: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: `
+              radial-gradient(2px 2px at 20% 30%, white, transparent),
+              radial-gradient(2px 2px at 60% 70%, white, transparent),
+              radial-gradient(1px 1px at 50% 50%, white, transparent),
+              radial-gradient(1px 1px at 80% 10%, white, transparent),
+              radial-gradient(2px 2px at 90% 60%, white, transparent),
+              radial-gradient(1px 1px at 33% 75%, white, transparent),
+              radial-gradient(2px 2px at 79% 53%, white, transparent)
+            `,
+            backgroundSize: '200% 200%',
+            animation: 'twinkle 8s ease-in-out infinite',
+            opacity: 0.4,
+            zIndex: 0,
+          },
+          cosmicGradient: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'radial-gradient(ellipse at top, rgba(138, 43, 226, 0.15), transparent 50%), radial-gradient(ellipse at bottom, rgba(75, 0, 130, 0.15), transparent 50%)',
+            zIndex: 0,
+          },
+          loadingContainer: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+            backgroundColor: '#0a0e1a',
+          },
+          spinner: {
+            width: '50px',
+            height: '50px',
+            border: '4px solid rgba(138, 43, 226, 0.3)',
+            borderTop: '4px solid #8a2be2',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+          },
+          loadingText: {
+            marginTop: '20px',
+            color: '#a8b2d1',
+            fontSize: '18px',
+          },
+          header: {
+            position: 'relative',
+            zIndex: 10,
+            padding: '30px 40px',
+            borderBottom: '1px solid rgba(138, 43, 226, 0.3)',
+            backgroundColor: 'rgba(10, 14, 26, 0.8)',
+            backdropFilter: 'blur(10px)',
+          },
+          logoContainer: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+          },
+          logo: {
+            filter: 'drop-shadow(0 0 10px rgba(138, 43, 226, 0.6))',
+          },
+          title: {
+            fontSize: '32px',
+            fontWeight: '700',
+            margin: 0,
+            background: 'linear-gradient(135deg, #8a2be2, #4b0082)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.5px',
+          },
+          subtitle: {
+            fontSize: '14px',
+            color: '#a8b2d1',
+            margin: '5px 0 0 0',
+          },
+          mainContent: {
+            position: 'relative',
+            zIndex: 10,
+            display: 'flex',
+            gap: '30px',
+            padding: '30px 40px',
+            maxWidth: '1800px',
+            margin: '0 auto',
+          },
+          sidebar: {
+            width: '300px',
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: '16px',
+            padding: '25px',
+            border: '1px solid rgba(138, 43, 226, 0.2)',
+            backdropFilter: 'blur(10px)',
+            height: 'fit-content',
+            position: 'sticky',
+            top: '30px',
+          },
+          sidebarTitle: {
+            fontSize: '20px',
+            fontWeight: '600',
+            marginBottom: '20px',
+            color: '#e2e8f0',
+          },
+          filterGroup: {
+            marginBottom: '20px',
+          },
+          label: {
+            display: 'block',
+            fontSize: '13px',
+            color: '#a8b2d1',
+            marginBottom: '8px',
+            fontWeight: '500',
+          },
+          input: {
+            width: '100%',
+            padding: '10px 14px',
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            border: '1px solid rgba(138, 43, 226, 0.3)',
+            borderRadius: '8px',
+            color: '#e2e8f0',
+            fontSize: '14px',
+            outline: 'none',
+            transition: 'all 0.3s ease',
+          },
+          select: {
+            width: '100%',
+            padding: '10px 14px',
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            border: '1px solid rgba(138, 43, 226, 0.3)',
+            borderRadius: '8px',
+            color: '#e2e8f0',
+            fontSize: '14px',
+            outline: 'none',
+            cursor: 'pointer',
+          },
+          dateInput: {
+            width: '100%',
+            padding: '10px 14px',
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            border: '1px solid rgba(138, 43, 226, 0.3)',
+            borderRadius: '8px',
+            color: '#e2e8f0',
+            fontSize: '14px',
+            outline: 'none',
+            marginBottom: '8px',
+          },
+          dateTo: {
+            display: 'block',
+            textAlign: 'center',
+            color: '#a8b2d1',
+            fontSize: '12px',
+            margin: '5px 0',
+          },
+          resetButton: {
+            width: '100%',
+            padding: '12px',
+            backgroundColor: 'rgba(138, 43, 226, 0.2)',
+            border: '1px solid rgba(138, 43, 226, 0.5)',
+            borderRadius: '8px',
+            color: '#e2e8f0',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            marginTop: '10px',
+          },
+          statsBox: {
+            marginTop: '30px',
+            padding: '20px',
+            backgroundColor: 'rgba(138, 43, 226, 0.1)',
+            borderRadius: '12px',
+            border: '1px solid rgba(138, 43, 226, 0.3)',
+          },
+          statsTitle: {
+            fontSize: '16px',
+            fontWeight: '600',
+            marginBottom: '15px',
+            color: '#e2e8f0',
+          },
+          statItem: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+          },
+          statLabel: {
+            fontSize: '13px',
+            color: '#a8b2d1',
+          },
+          statValue: {
+            fontSize: '16px',
+            fontWeight: '700',
+            color: '#8a2be2',
+          },
+          statValueSmall: {
+            fontSize: '11px',
+            fontWeight: '600',
+            color: '#8a2be2',
+            maxWidth: '120px',
+            textAlign: 'right',
+          },
+          content: {
+            flex: 1,
+          },
+          highlightGrid: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '20px',
+            marginBottom: '30px',
+          },
+          highlightCard: {
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: '16px',
+            padding: '30px',
+            border: '1px solid rgba(138, 43, 226, 0.2)',
+            backdropFilter: 'blur(10px)',
+            textAlign: 'center',
+            transition: 'all 0.3s ease',
+          },
+          cardIcon: {
+            fontSize: '40px',
+            marginBottom: '15px',
+          },
+          cardValue: {
+            fontSize: '32px',
+            fontWeight: '700',
+            margin: '0 0 8px 0',
+            background: 'linear-gradient(135deg, #8a2be2, #4b0082)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          },
+          cardLabel: {
+            fontSize: '14px',
+            color: '#a8b2d1',
+            margin: 0,
+          },
+          visualizationsGrid: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '20px',
+            marginBottom: '30px',
+          },
+          chartCard: {
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: '16px',
+            padding: '25px',
+            border: '1px solid rgba(138, 43, 226, 0.2)',
+            backdropFilter: 'blur(10px)',
+          },
+          chartTitle: {
+            fontSize: '18px',
+            fontWeight: '600',
+            marginBottom: '8px',
+            color: '#e2e8f0',
+          },
+          chartDescription: {
+            fontSize: '12px',
+            color: '#a8b2d1',
+            marginBottom: '20px',
+            lineHeight: '1.6',
+          },
+          tableCard: {
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: '16px',
+            padding: '25px',
+            border: '1px solid rgba(138, 43, 226, 0.2)',
+            backdropFilter: 'blur(10px)',
+          },
+          tableTitle: {
+            fontSize: '20px',
+            fontWeight: '600',
+            marginBottom: '20px',
+            color: '#e2e8f0',
+          },
+          tableContainer: {
+            overflowX: 'auto',
+            marginBottom: '20px',
+          },
+          table: {
+            width: '100%',
+            borderCollapse: 'collapse',
+          },
+          tableHeaderRow: {
+            borderBottom: '2px solid rgba(138, 43, 226, 0.3)',
+          },
+          th: {
+            padding: '12px 16px',
+            textAlign: 'left',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#a8b2d1',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          },
+          tableRow: {
+            borderBottom: '1px solid rgba(138, 43, 226, 0.1)',
+            transition: 'background-color 0.2s ease',
+          },
+          td: {
+            padding: '14px 16px',
+            fontSize: '14px',
+            color: '#e2e8f0',
+          },
+          statusBadge: {
+            padding: '4px 12px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: '600',
+            display: 'inline-block',
+          },
+          statusSuccess: {
+            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+            color: '#10b981',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+          },
+          statusFailure: {
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            color: '#ef4444',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+          },
+          statusPartial: {
+            backgroundColor: 'rgba(245, 158, 11, 0.2)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+          },
+          statusPrelaunch: {
+            backgroundColor: 'rgba(99, 102, 241, 0.2)',
+            color: '#6366f1',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+          },
+          pagination: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '20px',
+          },
+          paginationButton: {
+            padding: '10px 20px',
+            backgroundColor: 'rgba(138, 43, 226, 0.2)',
+            border: '1px solid rgba(138, 43, 226, 0.5)',
+            borderRadius: '8px',
+            color: '#e2e8f0',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+          },
+          paginationButtonDisabled: {
+            opacity: 0.4,
+            cursor: 'not-allowed',
+          },
+          paginationInfo: {
+            fontSize: '14px',
+            color: '#a8b2d1',
+          },
+        };
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SpaceMissionsDashboard />);
+    </script>
+
+    <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.6; }
+        }
+        
+        input:focus, select:focus {
+          border-color: rgba(138, 43, 226, 0.6) !important;
+          box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.1) !important;
+        }
+        
+        button:hover:not(:disabled) {
+          background-color: rgba(138, 43, 226, 0.4) !important;
+          border-color: rgba(138, 43, 226, 0.7) !important;
+          transform: translateY(-2px);
+        }
+        
+        .highlightCard:hover {
+          transform: translateY(-4px);
+          border-color: rgba(138, 43, 226, 0.5) !important;
+          box-shadow: 0 10px 30px rgba(138, 43, 226, 0.2);
+        }
+        
+        tr:hover {
+          background-color: rgba(138, 43, 226, 0.05) !important;
+        }
+    </style>
+</body>
+</html>

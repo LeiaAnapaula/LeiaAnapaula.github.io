@@ -85,13 +85,16 @@
         };
 
         // Function 2: getSuccessRate (5 decimal precision)
-        const getSuccessRate = (data, companyName) => {
-          const companyMissions = data.filter(mission => mission.Company === companyName);
-          if (companyMissions.length === 0) return 0.00000;
-          
-          const successfulMissions = companyMissions.filter(mission => mission.MissionStatus === 'Success').length;
-          return parseFloat(((successfulMissions / companyMissions.length) * 100).toFixed(5));
+        const ToFive = (x) => Number(x).toFixed(5); // returns string
+
+        const GetSuccessRate = (data, companyName) => {
+          const companyMissions = data.filter(m => m.Company === companyName);
+          if (companyMissions.length === 0) return "0.00000";
+        
+          const successful = companyMissions.filter(m => m.MissionStatus === "Success").length;
+          return ToFive((successful / companyMissions.length) * 100);
         };
+
 
         // Function 3: getMissionsByDateRange
         const getMissionsByDateRange = (data, startDate, endDate) => {
@@ -168,15 +171,19 @@
         };
 
         // Function 8: getAverageMissionsPerYear (5 decimal precision)
-        const getAverageMissionsPerYear = (data, startYear, endYear) => {
+        const GetAverageMissionsPerYear = (data, startYear, endYear) => {
           const yearRange = endYear - startYear + 1;
-          const missionsInRange = data.filter(mission => {
-            const year = new Date(mission.Date).getFullYear();
-            return year >= startYear && year <= endYear;
+          if (yearRange <= 0) return "0.00000";
+        
+          const missionsInRange = data.filter(m => {
+            const y = new Date(m.Date).getFullYear();
+            return y >= startYear && y <= endYear;
           }).length;
-          
-          return parseFloat((missionsInRange / yearRange).toFixed(5));
-        };
+        
+          return ToFive(missionsInRange / yearRange);
+        };    
+
+
 
         // ============================================================================
         // MAIN DASHBOARD COMPONENT
@@ -259,8 +266,8 @@
             const successCount = filteredData.filter(m => m.MissionStatus === 'Success').length;
             const successRate = totalMissions > 0 ? ((successCount / totalMissions) * 100).toFixed(5) : '0.00000';
             
-            const topCompanies = getTopCompaniesByMissionCount(filteredData, 10);
-            const statusCounts = getMissionStatusCount(filteredData);
+            const topCompanies = GetTopCompaniesByMissionCount(filteredData, 10);
+            const statusCounts = GetMissionStatusCount(filteredData);
             
             // Missions over time
             const missionsByYear = {};
@@ -413,7 +420,7 @@
                     </div>
                     <div style={styles.statItem}>
                       <span style={styles.statLabel}>Most Used Rocket</span>
-                      <span style={styles.statValueSmall}>{getMostUsedRocket(filteredData)}</span>
+                      <span style={styles.statValueSmall}>{GetMostUsedRocket(filteredData)}</span>
                     </div>
                   </div>
                 </aside>

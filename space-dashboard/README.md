@@ -2,8 +2,6 @@
 
 An interactive web-based dashboard for visualizing and analyzing historical space mission data from 1957 to present.
 
-![Dashboard Preview](preview.png)
-
 ## 🚀 Features
 
 - **Interactive Visualizations**: 3 comprehensive charts showing temporal trends, company rankings, and mission outcomes

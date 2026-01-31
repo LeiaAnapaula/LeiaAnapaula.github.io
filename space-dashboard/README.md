@@ -2,6 +2,8 @@
 
 An interactive web-based dashboard for visualizing and analyzing historical space mission data from 1957 to present.
 
+Want to play with it? <https://LeiaAnapaula.github.io/space-dashboard/index.html>
+
 ## 🚀 Features
 
 - **Interactive Visualizations**: 3 comprehensive charts showing temporal trends, company rankings, and mission outcomes

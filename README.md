@@ -35,9 +35,13 @@ This repository hosts my portfolio for **CS180: Computer Vision** at UC Berkeley
     <li><a href="Proj4/index.html">Project 4</a></li>
   </ul>
 
-- **Proj5/index.html** — Subpage for Project 5 about Diffusion Models.
+- **Proj5/indexa.html** — Part A for Project 5 about The Power of Diffusion Models.
   <ul>
-    <li><a href="Proj5/index.html">Project 5</a></li>
+    <li><a href="Proj5/indexa.html">Project 5A</a></li>
+  </ul>
+- **Proj5/indexb.html** — Part B for Project 5 about Flow Matching from Scratch.
+  <ul>
+    <li><a href="Proj5/indexb.html">Project 5B</a></li>
   </ul>
 
 ## How to Navigate

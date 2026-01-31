@@ -12,21 +12,32 @@
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Recharts: try CDN then fallback to local -->
+    <!-- PropTypes (must be present before Recharts UMD) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    
+    <!-- Recharts: prefer jsDelivr CDN, with a runtime fallback to a local vendor file if CDN fails -->
     <script crossorigin src="https://cdn.jsdelivr.net/npm/recharts@2.5.0/umd/Recharts.min.js"></script>
     <script>
-      // quick runtime check and friendly console message if blocked
+      // If the CDN was blocked/didn't define window.Recharts, try loading a local copy.
       (function () {
-        const tryUrl = (url) => fetch(url, { method: 'HEAD', mode: 'no-cors' })
-          .then(() => true)
-          .catch(() => false);
-    
-        // If Recharts global isn't present after a tick, print helpful guidance
-        setTimeout(() => {
-          if (!window.Recharts) {
-            console.warn('Recharts did not load from CDN. Try disabling extensions or serve a local copy (space-dashboard/vendor/Recharts.min.js).');
-          }
-        }, 500);
+        function loadLocal(src) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.async = false;
+          document.head.appendChild(s);
+        }
+        // On load, check for Recharts presence and attempt fallback if missing
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            if (!window.Recharts) {
+              console.warn('Recharts did not load from CDN — attempting to load local vendor/Recharts.min.js');
+              loadLocal('./vendor/Recharts.min.js');
+            }
+            if (typeof window.PropTypes === 'undefined') {
+              console.warn('prop-types global is not present. Consider adding ./vendor/prop-types.min.js as a fallback.');
+            }
+          }, 300);
+        });
       })();
     </script>
     
@@ -60,21 +71,22 @@
     <script type="text/babel">
       const { useState, useEffect, useMemo } = React;
 
-      // Recharts global can be _Recharts in your build
+      // Recharts global can be _Recharts in my build
       const Recharts = window.Recharts || window._Recharts;
         
       if (!Recharts) {
+        // Friendly message instead of throwing immediately. A local fallback script will attempt to load.
         document.getElementById("root").innerHTML =
-          "<div style='color:white;padding:20px;font-family:Outfit'>Recharts failed to load. Check the Recharts script tag (Network tab should show 200).</div>";
-        throw new Error("Recharts failed to load.");
-       }
+          "<div style='color:white;padding:20px;font-family:Outfit'>Recharts not available yet. The page will try to load a fallback local copy (./vendor/Recharts.min.js). If this persists, check console for details.</div>";
+        console.warn("Recharts not available on initial check. Continuing — charts will render once Recharts becomes available.");
+        // Do NOT throw — allow fallback loader to try and define Recharts.
+      }
+            
+      const {
+        BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+        XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+      } = Recharts || {};
         
-        const {
-          BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-        } = Recharts;
-
-
         // ============================================================================
         // DATA PROCESSING & REQUIRED FUNCTIONS (PascalCase with 5 decimal precision)
         // ============================================================================
@@ -1110,10 +1122,45 @@
           },
         };
 
-        // Render the app
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<SpaceMissionsDashboard />);
-    </script>
+        // =========================================================================
+        // MOUNT THE APP (resilient to delayed Recharts loading)
+        // =========================================================================
+        function mountApp() {
+          const rootEl = document.getElementById('root');
+          if (!rootEl) return;
+          try {
+            if (ReactDOM && ReactDOM.createRoot) {
+              ReactDOM.createRoot(rootEl).render(<SpaceMissionsDashboard />);
+            } else if (ReactDOM) {
+              ReactDOM.render(<SpaceMissionsDashboard />, rootEl);
+            } else {
+              console.error('ReactDOM is not available. Ensure ReactDOM script is loaded before this script.');
+            }
+          } catch (err) {
+            console.error('Failed to mount SpaceMissionsDashboard:', err);
+          }
+        }
+        
+        // Retry mounting until window.Recharts exists or max attempts reached
+        let __mountAttempts = 0;
+        const __maxMountAttempts = 10;
+        const __mountInterval = 300; // ms
+        
+        function __tryMount() {
+          __mountAttempts++;
+          if (window.Recharts || __mountAttempts >= __maxMountAttempts) {
+            mountApp();
+          } else {
+            setTimeout(__tryMount, __mountInterval);
+          }
+        }
+        
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          __tryMount();
+        } else {
+          document.addEventListener('DOMContentLoaded', __tryMount);
+        }
+        </script>
 
     <style>
         @keyframes spin {

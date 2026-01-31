@@ -1,6 +1,6 @@
 # Space Missions Dashboard created by Leia Anapaula
 
-An interactive web-based dashboard for visualizing and analyzing historical space mission data from 1957 to present.
+This is an interactive web-based dashboard for visualizing and analyzing historical space mission data from 1957 to present.
 
 Want to play with it? [Space Missions Dashboard](https://leiaanapaula.github.io/space-dashboard/)
 

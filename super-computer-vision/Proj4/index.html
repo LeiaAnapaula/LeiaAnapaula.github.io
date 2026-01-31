@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CS180 – Project 4 by Leia</title>
+  <style>
+    :root { --w: 320px; --gap: 18px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.45; margin: 0; color: #222; }
+    header { padding: 28px 16px; border-bottom: 1px solid #eee; }
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1, h2, h3 { margin: 0.4em 0 0.35em; }
+    section { margin: 36px 0 44px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w), 1fr)); gap: var(--gap); align-items: start; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; display: block; border-radius: 8px; }
+    figure figcaption { font-size: 0.95rem; color: #555; margin-top: 6px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .pill { display: inline-block; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; margin-left: 6px; }
+    .hr { height: 1px; background: #eee; margin: 28px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Project 4 - Neural Radiance Fields <span class="pill">Leia</span></h1>
+    <p class="muted">CS180 • Fall 2025</p>
+  </header>
+
+  <main>
+    <!-- ===================== Part 0 ===================== -->
+    <section id="a1">
+      <h2>Part 0.1: Calibrating Your Camera</h2>
+      <p>
+        I captured two sets of image pairs with projective transformations by fixing the center 
+        of projection and rotating the camera. Each pair has 40-70% overlap for robust registration.
+      </p>
+
+      <h3>Part 0.2: Capturing a 3D Object Scan (Lafufu)</h3>
+      <div class="grid grid-2">
+        <figure>
+          <img src="Part 0.2 - Lafufu Calibration.png" alt="Lafufu checkerboard calibration">
+          <figcaption>Lafufu – checkerboard calibration view.</figcaption>
+        </figure>
+        <figure>
+          <img src="Part 0.2 - Lafufu Poses.png" alt="Lafufu camera poses visualization">
+          <figcaption>Lafufu – recovered camera poses for the calibration sequence.</figcaption>
+        </figure>
+      </div>
+
+      <h3>Part 0.3: Estimating Camera Pose</h3>
+      <div class="grid grid-2">
+        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
+      </div>
+      <p class="muted">
+        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
+      </p>
+
+      <h3>Part 0.4: Undistorting images and creating a dataset</h3>
+      <div class="grid grid-2">
+        <figure><img src="assets/imgs/hearst_left.png"><figcaption>Hearst Left</figcaption></figure>
+        <figure><img src="assets/imgs/hearst_right.png"><figcaption>Hearst Right</figcaption></figure>
+      </div>
+      <p class="muted">
+        Fixed COP, handheld rotation (~60% overlap). Hearst Mining Building facade.
+      </p>
+
+      <div class="hr"></div>
+    </section>
+
+    <!-- ===================== Part 1 ===================== -->
+    <h2>Part 1: Fitting a Neural Field to a 2D Image</h2>
+    <p>
+      I fit an MLP to a single 2D image of a fox by treating each pixel coordinate as input
+      and predicting its RGB value.
+    </p>
+    
+    <div class="grid grid-1">
+      <figure>
+        <img src="Part 1 fox pixels.png" alt="Fox image reconstructed from neural field">
+        <figcaption>
+          Neural field fit to the fox image. The network learns a continuous mapping from
+          (x, y) pixel coordinates to RGB colors.
+        </figcaption>
+      </figure>
+    </div>
+
+        <!-- ===================== Part 2 ===================== -->
+    <section id="a3">
+      <h2>Part 2.1: Creating Rays from Cameras</h2>
+      <p>
+        For each training image I convert camera intrinsics and extrinsics into a dense grid of
+        <em>rays</em>. A ray is defined by an origin <code>o</code> (camera center in world space) and
+        a direction <code>d</code> (unprojected pixel through the camera). This lets the network operate
+        directly in 3D, independent of image resolution.
+      </p>
+
+      <pre><code># get_rays: K is intrinsics, c2w is camera-to-world transform
+def get_rays(H, W, K, c2w):
+    i, j = torch.meshgrid(
+        torch.arange(W, device=K.device),
+        torch.arange(H, device=K.device),
+        indexing="xy",
+    )
+    pixels = torch.stack([(i - K[0, 2]) / K[0, 0],
+                          (j - K[1, 2]) / K[1, 1],
+                          torch.ones_like(i)], dim=-1)  # (H, W, 3)
+
+    # Rotate into world space and normalize
+    dirs = (pixels[..., None, :] @ c2w[:3, :3].T)[..., 0]
+    dirs = dirs / torch.norm(dirs, dim=-1, keepdim=True)
+
+    # Same origin for all pixels: camera center in world coords
+    origins = c2w[:3, 3].expand_as(dirs)
+    return origins, dirs</code></pre>
+
+      <div class="grid grid-2">
+        <figure>
+          <img src="assets/imgs/lego_train_sample.png" alt="Lego training image">
+          <figcaption>Example training image from the Lego multi-view dataset.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/rays_3d_vis.png" alt="3D rays visualization">
+          <figcaption>3D visualization of rays emitted from one camera into the scene.</figcaption>
+        </figure>
+      </div>
+
+      <p class="muted">
+        Each pixel now corresponds to a ray in world space. These rays drive all later steps:
+        sampling points along them, querying the NeRF network, and volume rendering back into
+        pixel colors.
+      </p>
+
+      <div class="hr"></div>
+
+      <h2>Part 2.2: Sampling Points Along Rays</h2>
+      <p>
+        Along each ray I sample <code>N=64</code> points between near and far bounds
+        (<code>t ∈ [2.0, 6.0]</code>). The sampling is stratified: I divide the interval into equal
+        bins and jitter a single sample inside each bin. This reduces aliasing and gives smoother
+        reconstructions.
+      </p>
+
+      <pre><code>def sample_points(rays_o, rays_d, N_samples, near=2.0, far=6.0):
+    R = rays_o.shape[0]
+    t_vals = torch.linspace(near, far, N_samples, device=rays_o.device)  # (N,)
+    # Stratified jitter within each bin
+    mids = 0.5 * (t_vals[:-1] + t_vals[1:])
+    upper = torch.cat([mids, t_vals[-1:]], dim=0)
+    lower = torch.cat([t_vals[:1], mids], dim=0)
+    t_rand = torch.rand((R, N_samples, 1), device=rays_o.device)
+    t = (lower[None, :, None] + (upper - lower)[None, :, None] * t_rand)
+    # 3D positions along the ray
+    pts = rays_o[:, None, :] + rays_d[:, None, :] * t
+    step_size = (far - near) / N_samples
+    return pts, t, step_size</code></pre>
+
+      <div class="grid grid-2">
+        <figure>
+          <img src="assets/imgs/rays_samples_vis.png" alt="Rays and samples visualization">
+          <figcaption>Visualization of up to 100 rays and their sampled 3D points.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/depth_debug_vis.png" alt="Depth along rays">
+          <figcaption>Color-coded depth values for sampled points along each ray.</figcaption>
+        </figure>
+      </div>
+
+      <p class="muted">
+        Sampling points turns each ray into a small 1D volume. The NeRF network predicts color and
+        density at these points, which we then integrate with volume rendering.
+      </p>
+
+      <div class="hr"></div>
+
+      <h2>Part 2.3: Visualizing Cameras, Rays, and Samples</h2>
+      <p>
+        Here I visualize the camera frustums, a subset of rays, and the sampled points used
+        to train the NeRF on the Lego scene.
+      </p>
+      
+      <div class="grid grid-3">
+        <figure>
+          <img src="Part 2.3 deliverable.png" alt="Camera frustums and rays visualization">
+          <figcaption>Camera frustums and a subset of rays in the Lego scene.</figcaption>
+        </figure>
+      
+        <figure>
+          <img src="part 2.3 deliverable 2.png" alt="Ray samples close-up view">
+          <figcaption>Close-up of sampled points along rays.</figcaption>
+        </figure>
+      
+        <figure>
+          <img src="part 2.3 deliverable 3.png" alt="Alternative view of rays and samples">
+          <figcaption>Alternative viewpoint of cameras and ray geometry.</figcaption>
+        </figure>
+      </div>
+
+      <h2>Part 2.4: NeRF Network Architecture</h2>
+      <p>
+        Here I visualize the NeRF MLP that takes in positional encodings of 3D points (and viewing
+        directions) and predicts density and RGB color. The architecture uses several fully connected
+        layers with ReLU activations and skip connections.
+      </p>
+      
+      <div class="grid grid-1">
+        <figure>
+          <!-- TODO: replace src with your actual filename, e.g. "Part 2.4 network.png" -->
+          <img src="Part 2.4 - network.png" alt="NeRF MLP architecture diagram">
+          <figcaption>
+            NeRF architecture used in my implementation. The shared trunk predicts density and features
+            which are combined with viewing directions to predict RGB.
+          </figcaption>
+        </figure>
+      </div>
+      
+      <div class="hr"></div>
+
+
+      <h2>Part 2.5: Volume Rendering</h2>
+      <p>
+        Given per-point densities <code>σᵢ</code> and colors <code>cᵢ</code> along each ray, I implement
+        the discrete volume rendering equation in PyTorch. The key idea is to treat the ray as a
+        semi-transparent volume and compute how much light is absorbed and emitted at each step.
+      </p>
+
+      <pre><code>def volrend(sigmas, rgbs, step_size):
+    """
+    sigmas: (B, N, 1) densities along each ray
+    rgbs:   (B, N, 3) colors at those samples
+    step_size: scalar distance between samples
+    returns: (B, 3) rendered colors
+    """
+    sigma_delta = sigmas * step_size                 # (B, N, 1)
+    alphas = 1.0 - torch.exp(-sigma_delta)          # αᵢ = 1 - exp(-σᵢ δ)
+
+    cumsum_sigma_delta = torch.cumsum(sigma_delta, dim=1)
+    accum_before = cumsum_sigma_delta - sigma_delta # ∑_{j&lt;i} σⱼ δ
+
+    T = torch.exp(-accum_before)                    # Tᵢ = exp(-∑_{j&lt;i} σⱼ δ)
+    weights = T * alphas                            # wᵢ = Tᵢ αᵢ
+
+    return torch.sum(weights * rgbs, dim=1)         # ∑ wᵢ cᵢ</code></pre>
+
+      <p class="muted">
+        Intuitively, <code>Tᵢ</code> is the probability the ray has not terminated before sample i,
+        and <code>αᵢ</code> is the probability it terminates <em>at</em> i. Their product gives a
+        weight for each sample, and summing the weighted colors yields the final pixel color. This
+        function is fully differentiable and passes the provided assertion test.
+      </p>
+
+      <div class="grid grid-3">
+        <figure>
+          <img src="assets/imgs/volume_diagram.png" alt="Volume rendering diagram">
+          <figcaption>Diagram of transmittance and alpha along a single ray.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/volrend_unit_test.png" alt="Unit test for volrend">
+          <figcaption>Unit test comparison: my implementation matches the reference values.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/imgs/volrend_debug_render.png" alt="Debug render">
+          <figcaption>Debug render of randomly initialized network using the volume renderer.</figcaption>
+        </figure>
+      </div>
+
+      <div class="hr"></div>
+    </section>
+
+   <!-- ===================== Part 2.6 ===================== -->
+    <section id="a4">
+      <h2>Part 2.6: Training NeRF on My Own Captured Object</h2>
+      <p>
+        For this part, I captured my own small scene: a drink placed on a table. I ran COLMAP to
+        recover camera intrinsics and extrinsics, converted them into the NeRF coordinate system,
+        and generated rays exactly as in Parts 2.1–2.3. I trained the same NeRF architecture as
+        before, but tuned a few hyperparameters for this dataset:
+      </p>
+      <ul>
+        <li><strong>Batch size:</strong> 10,000 random rays per iteration</li>
+        <li><strong>Samples per ray:</strong> 64 stratified samples</li>
+        <li><strong>Learning rate:</strong> 5e-4 with Adam</li>
+        <li><strong>Near / far bounds:</strong> 2.0 and 6.0 (chosen to tightly bound the object)</li>
+      </ul>
+      <p>
+        The model is optimized with MSE loss between rendered colors and ground-truth pixels. Below
+        I show the loss curve, some intermediate training renders, and a GIF of a camera circling
+        the object to visualize novel views.
+      </p>
+    
+      <h3>Training Loss</h3>
+      <figure>
+        <img src="training_loss.png" alt="Training loss curve for drink NeRF">
+        <figcaption>
+          Training loss (MSE) over iterations for my drink scene. The loss steadily decreases as the
+          NeRF learns the underlying radiance field.
+        </figcaption>
+      </figure>
+    
+      <h3>Intermediate Renders During Training</h3>
+      <div class="grid grid-3">
+        <figure>
+          <img src="drink_iter_000.png" alt="NeRF output at iteration 0">
+          <figcaption>Iteration 0 – random initialization, nearly uniform output.</figcaption>
+        </figure>
+        <figure>
+          <img src="drink_iter_500.png" alt="NeRF output at iteration 500">
+          <figcaption>Iteration 500 – silhouette and rough colors begin to appear.</figcaption>
+        </figure>
+        <figure>
+          <img src="drink_iter_3000.png" alt="NeRF output at iteration 3000">
+          <figcaption>Iteration 3000 – sharp geometry and textures recovered.</figcaption>
+        </figure>
+      </div>
+    
+      <h3>Novel Views: Camera Circling the Object</h3>
+      <p>
+        After training, I rendered a sequence of images by moving a virtual camera in a circular
+        path around the object. These frames are compiled into the GIF below.
+      </p>
+    
+      <div class="grid grid-1">
+        <figure>
+          <img src="IMG_7987.gif" alt="Camera circling the drink object (NeRF novel views)">
+          <figcaption>
+            GIF of a camera orbiting the reconstructed drink. The scene remains consistent from all
+            angles, showing that the NeRF has learned a coherent 3D radiance field.
+          </figcaption>
+        </figure>
+      </div>
+    
+      <div class="hr"></div>
+    </section>
+
+    
+    <p class="muted">
+      I train using random batches of rays (10K per step) with 64 samples along each ray, Adam
+      optimizer, and MSE loss between rendered and ground-truth pixel colors. After several thousand
+      iterations, the model reaches high PSNR and produces smooth, consistent novel-view renderings.
+    </p>
+    
+    <div class="hr"></div>
+
+    
+  </main>
+</body>
+</html>

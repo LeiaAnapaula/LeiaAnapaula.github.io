@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project 1 by Leia</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* you can move this into styles.css */
+    img { max-width: 100%; height: auto; display: block; margin: 0.5rem 0; }
+    .w300 { width: 300px; }
+    main { max-width: 900px; margin: 0 auto; padding: 1rem; }
+    .muted { color: #666; font-size: 0.95em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Project 1 by Leia</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>About Me</h2>
+      <p>
+        I'm Leia (like the princess) an AI founder building at the intersection of healthcare and spiritual tech.
+        I grew up in Lima, Peru and study Computer Science & Economics at UC Berkeley.
+      </p>
+    </section>
+
+    <section>
+      <h2>Part 1: Align Function</h2>
+      <h3>Monastery (PNG)</h3>
+      <img src="aligned/monastery.png" class="w300" alt="Aligned color result for Monastery">
+      <h4>Reflection</h4>
+      <p>
+        I crop ~10% off all sides before scoring to suppress plate borders/labels that bias NCC.
+        I search a local window (±15 px) and pick the displacement with the highest NCC.
+        Using <code>R</code> as the reference yields sharper edges and fewer color fringes than using <code>B</code>.
+      </p>
+      <p class="muted">Method: single-scale NCC; border crop ≈ 10%.</p>
+    </section>
+
+    <section>
+      <h2>Pyramid Function</h2>
+      <h3>Self-portrait (PNG preview)</h3>
+      <img src="aligned/self_portrait.png" class="w300" alt="Aligned color result for Self-portrait (PNG export)">
+      <p class="muted">
+        Note: Original input is <code>images/self_portrait.tif</code>. Browsers don’t display TIF reliably, so I exported a PNG for the site.
+      </p>
+      <h4>Reflection</h4>
+      <p>
+        A naive pyramid with <code>np.resize</code> tiled the image. I switched to proper resampling
+        (<code>skimage.transform.rescale</code> with anti-aliasing) and used NCC (optionally on Sobel edges)
+        across ~6–7 levels. After the coarse shift, a small ±3–4 px refine plus a final 10–14% crop removes residual color borders.
+      </p>
+      <p class="muted">Method: pyramid NCC (~6–7 levels), anti-aliased resampling; optional Sobel-NCC; crop ≈ 10–14%.</p>
+    </section>
+
+    <section>
+      <p class="muted"><a href="../index.html">← Back to Portfolio</a></p>
+    </section>
+
+  </main>
+</body>
+</html>

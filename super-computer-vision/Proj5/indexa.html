@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proj 5 — Part A</title>
+
+    <style>
+        :root {
+            --berkeley-blue: #003262;
+            --founders-rock: #C4820E;
+            --medalist: #D9661F;
+            --light-gray: #EEEEEE;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0 40px 80px 40px;
+            background-color: var(--light-gray);
+        }
+
+        h1, h2, h3 {
+            font-weight: 600;
+            color: var(--berkeley-blue);
+        }
+
+        nav {
+            background: var(--berkeley-blue);
+            padding: 15px;
+            color: white;
+            position: sticky;
+            top: 0;
+            border-bottom: 4px solid var(--founders-rock);
+        }
+
+        nav a {
+            color: var(--founders-rock);
+            margin-right: 15px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        nav a:hover {
+            color: var(--medalist);
+        }
+
+        section {
+            margin-top: 55px;
+        }
+
+        img {
+            max-width: 100%;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+
+        .sub {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav>
+    <a href="#top">Proj5</a>
+    <a href="#p0">Part 0</a>
+    <a href="#p1">Part 1</a>
+    <a href="#p1-1">1.1</a>
+    <a href="#p1-2">1.2</a>
+    <a href="#p1-3">1.3</a>
+    <a href="#p1-4">1.4</a>
+    <a href="#p1-5">1.5</a>
+    <a href="#p1-6">1.6</a>
+    <a href="#p1-7">1.7</a>
+    <a href="#p1-8">1.8</a>
+    <a href="#p1-9">1.9</a>
+</nav>
+<h1 id="top">CS180 Project 5 — Part A</h1>
+<h2>Diffusion Models & Image Generation</h2>
+
+<!-- ===================== Part 0: Setup ===================== -->
+<section id="part0">
+  <h2>Part 0: Setup – Playing with DeepFloyd IF</h2>
+
+  <p>
+    For Part 0, I explored the DeepFloyd IF text-to-image model using three custom prompts. 
+    Stage 1 generates low-resolution (64×64) images, and Stage 2 upsamples them to 
+    256×256 for higher quality.
+  </p>
+
+  <h3>Prompts</h3>
+  <ul>
+    <li>Prompt 1: <code>a king and a queen on top of the world</code></li>
+    <li>Prompt 2: <code>a rat cooking ratatouille in a detailed kitchen</code></li>
+    <li>Prompt 3: <code>a mouse holding a tiny umbrella</code></li>
+  </ul>
+
+  <p>
+    I used a fixed random seed for all images so the results are reproducible.  
+    <!-- Replace SEED_HERE with your actual seed value -->
+    Random seed: <code>SEED_HERE</code>
+  </p>
+
+  <h3>Stage 1 Outputs (64×64)</h3>
+  <div class="image-row">
+    <figure>
+      <img src="figs/stage1_00.png" alt="Stage 1: a king and a queen on top of the world" />
+      <figcaption>
+        Prompt: <code>a king and a queen on top of the world</code><br>
+        Stage 1 (64×64) – rough silhouettes and colors, but composition is visible.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="figs/stage1_01.png" alt="Stage 1: a rat cooking ratatouille in a detailed kitchen" />
+      <figcaption>
+        Prompt: <code>a rat cooking ratatouille in a detailed kitchen</code><br>
+        Stage 1 (64×64) – the rat + pot are recognizable but very blurry.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="figs/stage1_02.png" alt="Stage 1: a mouse holding a tiny umbrella" />
+      <figcaption>
+        Prompt: <code>a mouse holding a tiny umbrella</code><br>
+        Stage 1 (64×64) – basic mouse + umbrella shapes with coarse colors.
+      </figcaption>
+    </figure>
+  </div>
+
+  <h3>Stage 2 Outputs (256×256)</h3>
+  <div class="image-row">
+    <figure>
+      <img src="figs/stage2_00.png" alt="Stage 2: a king and a queen on top of the world" />
+      <figcaption>
+        Prompt: <code>a king and a queen on top of the world</code><br>
+        Stage 2 (256×256) – much sharper details and lighting; characters and background
+        are clearly defined.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="figs/stage2_01.png" alt="Stage 2: a rat cooking ratatouille in a detailed kitchen" />
+      <figcaption>
+        Prompt: <code>a rat cooking ratatouille in a detailed kitchen</code><br>
+        Stage 2 (256×256) – the rat, pot, and kitchen props become crisp and cartoon-like.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="figs/stage2_02.png" alt="Stage 2: a mouse holding a tiny umbrella" />
+      <figcaption>
+        Prompt: <code>a mouse holding a tiny umbrella</code><br>
+        Stage 2 (256×256) – very clear mouse character with a colorful umbrella and bokeh background.
+      </figcaption>
+    </figure>
+  </div>
+
+  <h3>Observations</h3>
+  <p>
+    Stage 1 roughly captures the global structure and colors but is extremely blurry. 
+    Stage 2 preserves that structure while adding sharp edges, textures, and small details. 
+    Across different prompts, the model consistently understands the main objects and scene 
+    layout, but sometimes makes stylistic choices (e.g., cartoon vs. realistic) that aren't 
+    explicitly specified in the text.
+  </p>
+</section>
+
+<!-- =======================
+     Part 1: Sampling Loops
+     ======================= -->
+
+<section id="p1">
+    <h2>Part 1 — Sampling and Denoising</h2>
+</section>
+
+<!-- 1.1 ------------------------------------------------------------ -->
+<h2>1.1 Forward Process: Adding Noise</h2>
+
+<p>
+In this part I implemented the forward diffusion process
+<code>noisy_im = forward(im, t)</code>, which gradually corrupts a clean image
+by adding Gaussian noise controlled by a schedule <code>&#257;_t</code>.
+The Campanile image below shows what the same picture looks like at different
+noise levels.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/campanile.jpg" alt="Original Campanile" width="180">
+    <figcaption>Original Campanile</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/campanile_noisy_t250.png" alt="Campanile noisy t=250" width="180">
+    <figcaption>Noisy at t = 250</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/campanile_noisy_t500.png" alt="Campanile noisy t=500" width="180">
+    <figcaption>Noisy at t = 500</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/campanile_noisy_t750.png" alt="Campanile noisy t=750" width="180">
+    <figcaption>Noisy at t = 750</figcaption>
+  </figure>
+</div>
+
+<p>
+As <code>t</code> increases the signal slowly disappears and the image approaches pure noise.
+This is the process that the denoising model will later have to invert.
+</p>
+
+<hr>
+
+<!-- 1.2 ------------------------------------------------------------ -->
+<h2>1.2 Classical Denoising: Gaussian Blur</h2>
+
+<p>
+Before using any learned model, I tried a purely classical baseline:
+Gaussian blur. I blurred the noisy Campanile images at different timesteps
+and compared them side-by-side with the input noise.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/12_noisy_t250.png" alt="Noisy t=250" width="180">
+    <figcaption>Noisy t = 250</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/12_blur_t250.png" alt="Blurred t=250" width="180">
+    <figcaption>Gaussian blur (t = 250)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/12_noisy_t500.png" alt="Noisy t=500" width="180">
+    <figcaption>Noisy t = 500</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/12_blur_t500.png" alt="Blurred t=500" width="180">
+    <figcaption>Gaussian blur (t = 500)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/12_noisy_t750.png" alt="Noisy t=750" width="180">
+    <figcaption>Noisy t = 750</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/12_blur_t750.png" alt="Blurred t=750" width="180">
+    <figcaption>Gaussian blur (t = 750)</figcaption>
+  </figure>
+</div>
+
+<p>
+Blur can smooth out some grainy noise, but it also destroys edges and structure.
+It never actually <em>recovers</em> the original image, which is why we need
+a learned denoiser.
+</p>
+
+<hr>
+
+<!-- 1.3 ------------------------------------------------------------ -->
+<h2>1.3 One-Step Denoising with a Pretrained UNet</h2>
+
+<p>
+Next I used the Stage-1 DeepFloyd IF UNet (<code>stage_1.unet</code>) as a
+learned denoiser. For each timestep, the UNet predicts the noise
+<code>&#949;̂</code>; I then reconstruct an estimate of the clean image
+<code>x̂₀</code> in a <strong>single reverse step</strong>.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/13_original.png" alt="Original" width="180">
+    <figcaption>Original Campanile</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/13_noisy_t250.png" alt="Noisy t=250" width="180">
+    <figcaption>Noisy t = 250</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/13_denoised_t250.png" alt="Denoised t=250" width="180">
+    <figcaption>One-step denoise (t = 250)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/13_noisy_t500.png" alt="Noisy t=500" width="180">
+    <figcaption>Noisy t = 500</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/13_denoised_t500.png" alt="Denoised t=500" width="180">
+    <figcaption>One-step denoise (t = 500)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/13_noisy_t750.png" alt="Noisy t=750" width="180">
+    <figcaption>Noisy t = 750</figcaption>
+  </figure>
+  <figure>
+    <img src="13_denoised_t750.png" alt="Denoised t=750" width="180">
+    <figcaption>One-step denoise (t = 750)</figcaption>
+  </figure>
+</div>
+
+<p>
+Even a single reverse step with the UNet is already much sharper than the Gaussian blur,
+but fine details are still missing, and the result is not perfectly faithful to
+the original. This motivates the use of the full multi-step reverse process.
+</p>
+
+<hr>
+
+<!-- 1.4 ------------------------------------------------------------ -->
+<h2>1.4 Iterative Denoising (DDPM Reverse Process)</h2>
+
+<p>
+In this part, I implemented an iterative DDPM-style reverse process using a
+<strong>strided schedule</strong> of timesteps (starting at 990 with stride 30 down to 0).
+Starting from a noisy Campanile (i_start = 10), the denoising loop gradually removes noise.
+</p>
+
+<h3>Progress During Iterative Denoising (shown every 5 steps)</h3>
+<div class="img-row">
+  <figure>
+    <img src="figs/14_iterative_step_5_t840.png" alt="Iterative step 5 (t=840)" width="220">
+    <figcaption>Step 5 (t = 840)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_iterative_step_10_t690.png" alt="Iterative step 10 (t=690)" width="220">
+    <figcaption>Step 10 (t = 690)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_iterative_step_15_t540.png" alt="Iterative step 15 (t=540)" width="220">
+    <figcaption>Step 15 (t = 540)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_iterative_step_20_t390.png" alt="Iterative step 20 (t=390)" width="220">
+    <figcaption>Step 20 (t = 390)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_iterative_step_25_t240.png" alt="Iterative step 25 (t=240)" width="220">
+    <figcaption>Step 25 (t = 240)</figcaption>
+  </figure>
+</div>
+
+<h3>Final Comparison</h3>
+<p>
+Below is a comparison between iterative denoising (multi-step), one-step denoising, and Gaussian blur.
+The iterative method produces the cleanest and most coherent reconstruction.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/14_blur.png" alt="Gaussian blur baseline" width="220">
+    <figcaption>Gaussian blur baseline</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_one_step.png" alt="One-step denoising" width="220">
+    <figcaption>One-step UNet denoising</figcaption>
+  </figure>
+
+  <figure>
+    <img src="figs/14_iterative_step_25_t240.png" alt="Final iterative denoising result" width="220">
+    <figcaption>Iterative denoising (final)</figcaption>
+  </figure>
+</div>
+
+<hr>
+
+<!-- 1.5 ------------------------------------------------------------ -->
+<h2>1.5 Sampling: Generating Images from Pure Noise</h2>
+
+<p>
+Once the iterative reverse process worked on real images, I turned it into a
+<strong>generator</strong>. I started from pure Gaussian noise
+<code>x_T ~ N(0, I)</code> and ran the same denoising loop all the way to t = 0
+(with the prompt <code>"a high quality photo"</code>).
+This produces completely new images drawn from the model&rsquo;s learned distribution.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/15_sample_1.png" alt="Sample 1" width="180">
+    <figcaption>Sample 1</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/15_sample_2.png" alt="Sample 2" width="180">
+    <figcaption>Sample 2</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/15_sample_3.png" alt="Sample 3" width="180">
+    <figcaption>Sample 3</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/15_sample_4.png" alt="Sample 4" width="180">
+    <figcaption>Sample 4</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/15_sample_5.png" alt="Sample 5" width="180">
+    <figcaption>Sample 5</figcaption>
+  </figure>
+</div>
+
+<p>
+Because this Stage-1 model operates at low resolution and is later upsampled by
+Stage-2, these samples look like abstract, low-frequency silhouettes and
+landscapes, but they are generated purely from noise.
+</p>
+
+<hr>
+
+<!-- 1.6 ------------------------------------------------------------ -->
+<h2>1.6 Classifier-Free Guidance (CFG)</h2>
+
+<p>
+The basic samples above are often blurry or off prompt. To steer the generation
+more strongly toward a text prompt, I implemented
+<strong>classifier-free guidance (CFG)</strong>.
+The idea is to run the UNet twice:
+</p>
+
+<ul>
+  <li>once with the conditional prompt embedding (<code>p_c</code>)</li>
+  <li>once with an unconditional embedding (<code>p_u</code>, the empty prompt)</li>
+</ul>
+
+<p>
+The two predicted noises <code>&#949;<sub>c</sub>, &#949;<sub>u</sub></code>
+are combined as:
+</p>
+
+<pre>&epsilon; = &#949;<sub>u</sub> + &gamma; (&#949;<sub>c</sub> - &#949;<sub>u</sub>)</pre>
+
+<p>
+where <code>&gamma; = 7</code> controls guidance strength.
+I plugged this guided noise estimate into the same iterative sampler as before.
+With CFG, the images become much sharper and more aligned with the text
+<code>"a high quality photo"</code>.
+</p>
+
+<div class="img-row">
+  <figure>
+    <img src="figs/16_cfg_sample_1.png" alt="CFG sample 1" width="180">
+    <figcaption>CFG Sample 1</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/16_cfg_sample_2.png" alt="CFG sample 2" width="180">
+    <figcaption>CFG Sample 2</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/16_cfg_sample_3.png" alt="CFG sample 3" width="180">
+    <figcaption>CFG Sample 3</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/16_cfg_sample_4.png" alt="CFG sample 4" width="180">
+    <figcaption>CFG Sample 4</figcaption>
+  </figure>
+  <figure>
+    <img src="figs/16_cfg_sample_5.png" alt="CFG sample 5" width="180">
+    <figcaption>CFG Sample 5</figcaption>
+  </figure>
+</div>
+
+<p>
+Compared to the unguided samples in Part 1.5, classifier-free guidance produces
+images with stronger structure, contrast, and recognizable silhouettes,
+showing how much control a simple guidance trick can add to diffusion sampling.
+</p>
+
+
+<section id="p1-7" class="sub">
+  <h3>Part 1.7 — Image-to-Image & Inpainting</h3>
+
+  <h4>1.7.1 Editing Hand-Drawn & Web Images</h4>
+
+  <h5>Web Image</h5>
+  <div class="img-grid">
+    <img src="figs/171_web_edit_1.png">
+    <img src="figs/171_web_edit_3.png">
+    <img src="figs/171_web_edit_5.png">
+    <img src="figs/171_web_edit_7.png">
+    <img src="figs/171_web_edit_10.png">
+    <img src="figs/171_web_edit_20.png">
+  </div>
+
+  <h5>Hand-Drawn Image 1 (denoised set)</h5>
+  <div class="img-grid">
+    <img src="figs/handdrawn1/denoised_i1.png">
+    <img src="figs/handdrawn1/denoised_i3.png">
+    <img src="figs/handdrawn1/denoised_i5.png">
+    <img src="figs/handdrawn1/denoised_i7.png">
+    <img src="figs/handdrawn1/denoised_i10.png">
+    <img src="figs/handdrawn1/denoised_i20.png">
+  </div>
+
+  <h5>Hand-Drawn Image 2 (denoised set)</h5>
+  <div class="img-grid">
+    <img src="figs/handdrawn2/denoised_i1.png">
+    <img src="figs/handdrawn2/denoised_i3.png">
+    <img src="figs/handdrawn2/denoised_i5.png">
+    <img src="figs/handdrawn2/denoised_i7.png">
+    <img src="figs/handdrawn2/denoised_i10.png">
+    <img src="figs/handdrawn2/denoised_i20.png">
+  </div>
+
+  <h5>Original drawings</h5>
+  <div class="img-grid">
+    <img src="figs/original_drawings/heart_original.png">
+    <img src="figs/original_drawings/sun_original.png">
+  </div>
+
+  <h4>1.7.2 Inpainting</h4>
+  <div class="img-grid">
+    <!-- keep these if they exist; otherwise rename to whatever you saved -->
+    <img src="figs/172_mask_campanile.png">
+  </div>
+
+  <h4>1.7.3 Text-Conditional Image-to-Image</h4>
+
+  <h5>Campanile</h5>
+  <div class="img-grid">
+    <img src="figs/173_campanile_1.png">
+    <img src="figs/173_campanile_3.png">
+    <img src="figs/173_campanile_5.png">
+    <img src="figs/173_campanile_7.png">
+    <img src="figs/173_campanile_10.png">
+    <img src="figs/173_campanile_20.png">
+  </div>
+
+  <h5>Personalized Prompt — Rat (Campanile edit)</h5>
+  <div class="img-grid">
+    <img src="figs/173_rat_campanile_1.png">
+    <img src="figs/173_rat_campanile_3.png">
+    <img src="figs/173_rat_campanile_5.png">
+    <img src="figs/173_rat_campanile_7.png">
+    <img src="figs/173_rat_campanile_10.png">
+    <img src="figs/173_rat_campanile_20.png">
+  </div>
+</section>
+
+<section id="p1-8" class="sub">
+  <h3>Part 1.8 — Visual Anagrams</h3>
+  <p>Two illusions that change appearance when flipped upside down.</p>
+
+  <div class="img-grid">
+    <img src="figs/18_anagram_1_upright.png">
+    <img src="figs/18_anagram_1_flipped.png">
+    <img src="figs/18_anagram_2_upright.png">
+    <img src="figs/18_anagram_2_flipped.png">
+  </div>
+</section>
+
+<section id="p1-9" class="sub">
+  <h3>Part 1.9 — Hybrid Images</h3>
+  <p>Hybrid images generated using low-pass and high-pass diffusion guidance.</p>
+
+  <div class="img-grid">
+    <img src="figs/19_hybrid_cat_mouse.png">
+    <img src="figs/19_hybrid_castle_marshmallow.png">
+  </div>
+</section>
+    
+
+</body>
+</html>

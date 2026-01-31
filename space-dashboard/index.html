@@ -52,7 +52,7 @@
 
         const processCSVData = (csvText) => {
           const lines = csvText.trim().split('\n');
-          const headers = lines[0].split(',');
+          const headers = lines[0].split(',').map(h => h.trim());
           
           return lines.slice(1).map(line => {
             const values = [];
@@ -226,15 +226,18 @@
             }
             
             if (dateRange.start && dateRange.end) {
-              const missions = getMissionsByDateRange(data, dateRange.start, dateRange.end);
-              filtered = filtered.filter(m => missions.includes(m.Mission));
+              filtered = filtered.filter(m => {
+                  const d = new Date(m.Date);
+                  return d >= new Date(dateRange.start) && d <= new Date(dateRange.end);
+              });
+
             }
             
             if (searchTerm) {
               filtered = filtered.filter(m => 
-                m.Mission.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                m.Rocket.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                m.Location.toLowerCase().includes(searchTerm.toLowerCase())
+                (m.Mission || '').toLowerCase().includes(searchTerm.toLowerCase())
+                (m.Rocket || '').toLowerCase().includes(searchTerm.toLowerCase())
+                (m.Location || '').toLowerCase().includes(searchTerm.toLowerCase())
               );
             }
             
@@ -472,7 +475,7 @@
                       <h3 style={styles.chartTitle}>Top Companies by Mission Count</h3>
                       <p style={styles.chartDescription}>
                         Comparative analysis of major space organizations. Bar chart visualizes market 
-                        dominance and evolution from government agencies (USSR, NASA) to modern private 
+                        dominance and evolution from government agencies (NASA, USSR) to modern private 
                         entities (SpaceX, Blue Origin).
                       </p>
                       <ResponsiveContainer width="100%" height={300}>
@@ -506,7 +509,7 @@
                       <p style={styles.chartDescription}>
                         Success rate breakdown across all missions. Pie chart provides proportional view 
                         of outcomes, demonstrating the high-risk nature of space exploration and improvements 
-                        in reliability over time.
+                        in reliability over time. Enjoy!
                       </p>
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>

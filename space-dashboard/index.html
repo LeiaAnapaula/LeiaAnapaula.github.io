@@ -197,12 +197,17 @@
           const [currentPage, setCurrentPage] = useState(1);
           const itemsPerPage = 20;
 
+          // Load CSV Data
           useEffect(() => {
-            // Load CSV data
             fetch('space_missions.csv')
               .then(res => res.text())
               .then(csvText => {
                 const processedData = processCSVData(csvText);
+            
+                // 🔑 make data globally accessible for required functions
+                window.SPACE_DATA = processedData;
+            
+                // React state (for UI)
                 setData(processedData);
                 setFilteredData(processedData);
                 setLoading(false);
@@ -210,8 +215,9 @@
               .catch(err => {
                 console.error('Error loading data:', err);
                 setLoading(false);
-              });
+               });
           }, []);
+
 
           // Apply filters
           useEffect(() => {
@@ -234,11 +240,13 @@
             }
             
             if (searchTerm) {
-              filtered = filtered.filter(m => 
-                (m.Mission || '').toLowerCase().includes(searchTerm.toLowerCase())
-                (m.Rocket || '').toLowerCase().includes(searchTerm.toLowerCase())
-                (m.Location || '').toLowerCase().includes(searchTerm.toLowerCase())
+              const q = searchTerm.toLowerCase();
+              filtered = filtered.filter(m =>
+                  ((m.Mission || '').toLowerCase().includes(q)) ||
+                  ((m.Rocket || '').toLowerCase().includes(q)) ||
+                  ((m.Location || '').toLowerCase().includes(q))
               );
+
             }
             
             setFilteredData(filtered);

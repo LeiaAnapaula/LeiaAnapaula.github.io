@@ -79,13 +79,13 @@
           });
         };
 
-        // Function 1: GetMissionCountByCompany
-        const GetMissionCountByCompany = (data, companyName) => {
+        // Function 1: getMissionCountByCompany
+        const getMissionCountByCompany = (data, companyName) => {
           return data.filter(mission => mission.Company === companyName).length;
         };
 
-        // Function 2: GetSuccessRate (5 decimal precision)
-        const GetSuccessRate = (data, companyName) => {
+        // Function 2: getSuccessRate (5 decimal precision)
+        const getSuccessRate = (data, companyName) => {
           const companyMissions = data.filter(mission => mission.Company === companyName);
           if (companyMissions.length === 0) return 0.00000;
           
@@ -93,8 +93,8 @@
           return parseFloat(((successfulMissions / companyMissions.length) * 100).toFixed(5));
         };
 
-        // Function 3: GetMissionsByDateRange
-        const GetMissionsByDateRange = (data, startDate, endDate) => {
+        // Function 3: getMissionsByDateRange
+        const getMissionsByDateRange = (data, startDate, endDate) => {
           const start = new Date(startDate);
           const end = new Date(endDate);
           
@@ -107,8 +107,8 @@
             .map(mission => mission.Mission);
         };
 
-        // Function 4: GetTopCompaniesByMissionCount
-        const GetTopCompaniesByMissionCount = (data, n) => {
+        // Function 4: getTopCompaniesByMissionCount
+        const getTopCompaniesByMissionCount = (data, n) => {
           const companyCounts = {};
           
           data.forEach(mission => {
@@ -124,8 +124,8 @@
             .map(([company, count]) => [company, count]);
         };
 
-        // Function 5: GetMissionStatusCount
-        const GetMissionStatusCount = (data) => {
+        // Function 5: getMissionStatusCount
+        const getMissionStatusCount = (data) => {
           const statusCount = {
             "Success": 0,
             "Failure": 0,
@@ -142,16 +142,16 @@
           return statusCount;
         };
 
-        // Function 6: GetMissionsByYear
-        const GetMissionsByYear = (data, year) => {
+        // Function 6: getMissionsByYear
+        const getMissionsByYear = (data, year) => {
           return data.filter(mission => {
             const missionYear = new Date(mission.Date).getFullYear();
             return missionYear === year;
           }).length;
         };
 
-        // Function 7: GetMostUsedRocket
-        const GetMostUsedRocket = (data) => {
+        // Function 7: getMostUsedRocket
+        const getMostUsedRocket = (data) => {
           const rocketCounts = {};
           
           data.forEach(mission => {
@@ -167,8 +167,8 @@
           return sortedRockets.length > 0 ? sortedRockets[0][0] : '';
         };
 
-        // Function 8: GetAverageMissionsPerYear (5 decimal precision)
-        const GetAverageMissionsPerYear = (data, startYear, endYear) => {
+        // Function 8: getAverageMissionsPerYear (5 decimal precision)
+        const getAverageMissionsPerYear = (data, startYear, endYear) => {
           const yearRange = endYear - startYear + 1;
           const missionsInRange = data.filter(mission => {
             const year = new Date(mission.Date).getFullYear();
@@ -226,7 +226,7 @@
             }
             
             if (dateRange.start && dateRange.end) {
-              const missions = GetMissionsByDateRange(data, dateRange.start, dateRange.end);
+              const missions = getMissionsByDateRange(data, dateRange.start, dateRange.end);
               filtered = filtered.filter(m => missions.includes(m.Mission));
             }
             
@@ -248,8 +248,8 @@
             const successCount = filteredData.filter(m => m.MissionStatus === 'Success').length;
             const successRate = totalMissions > 0 ? ((successCount / totalMissions) * 100).toFixed(5) : '0.00000';
             
-            const topCompanies = GetTopCompaniesByMissionCount(filteredData, 10);
-            const statusCounts = GetMissionStatusCount(filteredData);
+            const topCompanies = getTopCompaniesByMissionCount(filteredData, 10);
+            const statusCounts = getMissionStatusCount(filteredData);
             
             // Missions over time
             const missionsByYear = {};
@@ -402,7 +402,7 @@
                     </div>
                     <div style={styles.statItem}>
                       <span style={styles.statLabel}>Most Used Rocket</span>
-                      <span style={styles.statValueSmall}>{GetMostUsedRocket(filteredData)}</span>
+                      <span style={styles.statValueSmall}>{getMostUsedRocket(filteredData)}</span>
                     </div>
                   </div>
                 </aside>

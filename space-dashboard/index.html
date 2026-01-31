@@ -199,7 +199,7 @@
 
           useEffect(() => {
             // Load CSV data
-            fetch('space_missions__1_.csv')
+            fetch('space_missions.csv')
               .then(res => res.text())
               .then(csvText => {
                 const processedData = processCSVData(csvText);
